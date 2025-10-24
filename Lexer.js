@@ -1,5 +1,4 @@
-// B"H
-// --- The Artificer of Golems (Final, Flawless & Unbreakable) ---
+// B"H --- The Artificer of Golems (Final, Flawless & Unbreakable) ---
 class Lexer {
 	constructor(s) {
 		this.source = s;
@@ -13,11 +12,7 @@ class Lexer {
 		this._advance()
 	}
 	_advance() {
-		if (this.readPosition >= this.source.length) {
-			this.ch = null
-		} else {
-			this.ch = this.source[this.readPosition]
-		}
+		this.ch = this.readPosition >= this.source.length ? null : this.source[this.readPosition];
 		this.position = this.readPosition++;
 		this.column++
 	}
@@ -37,20 +32,15 @@ class Lexer {
 	_skipWhitespace() {
 		this.hasLineTerminatorBefore = false;
 		while (this.ch !== null) {
-			if (' \t'.includes(this.ch)) {
-				this._advance()
-			} else if ('\n\r'.includes(this.ch)) {
+			if (' \t'.includes(this.ch)) this._advance();
+			else if ('\n\r'.includes(this.ch)) {
 				this.hasLineTerminatorBefore = true;
-				if (this.ch === '\r' && this._peek() === '\n') {
-					this._advance()
-				}
+				if (this.ch === '\r' && this._peek() === '\n') this._advance();
 				this._advance();
 				this.line++;
 				this.column = 0
 			} else if (this.ch === '/' && this._peek() === '/') {
-				while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) {
-					this._advance()
-				}
+				while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance()
 			} else if (this.ch === '/' && this._peek() === '*') {
 				this._advance();
 				this._advance();
@@ -66,71 +56,43 @@ class Lexer {
 					this._advance();
 					this._advance()
 				}
-			} else {
-				break
-			}
+			} else break
 		}
 	}
 	nextToken() {
-		if (this.templateStack.length > 0 && this.templateStack[this.templateStack.length - 1] === 1) {
-			return this._readTemplateMiddleOrTail()
-		}
+		if (this.templateStack.length > 0) return this._readTemplatePart();
 		this._skipWhitespace();
-		if (this.ch === null) {
-			return this._makeToken(TOKEN.EOF, '')
-		}
+		if (this.ch === null) return this._makeToken(TOKEN.EOF, '');
 		const c = this.ch;
 		let tok;
 		switch (c) {
 			case '=':
-				if (this._peek() === '>') {
-					this._advance(), tok = this._makeToken(TOKEN.ARROW, '=>')
-				} else if (this._peek() === '=') {
-					this._advance(), tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EQ_STRICT, '===')) : this._makeToken(TOKEN.EQ, '==')
-				} else {
-					tok = this._makeToken(TOKEN.ASSIGN, '=')
-				}
+				if (this._peek() === '>') this._advance(), tok = this._makeToken(TOKEN.ARROW, '=>');
+				else if (this._peek() === '=') this._advance(), tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EQ_STRICT, '===')) : this._makeToken(TOKEN.EQ, '==');
+				else tok = this._makeToken(TOKEN.ASSIGN, '=');
 				break;
 			case '!':
-				if (this._peek() === '=') {
-					this._advance(), tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NOT_EQ_STRICT, '!==')) : this._makeToken(TOKEN.NOT_EQ, '!=')
-				} else {
-					tok = this._makeToken(TOKEN.BANG, '!')
-				}
+				if (this._peek() === '=') this._advance(), tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NOT_EQ_STRICT, '!==')) : this._makeToken(TOKEN.NOT_EQ, '!=');
+				else tok = this._makeToken(TOKEN.BANG, '!');
 				break;
 			case '+':
-				if (this._peek() === '+') {
-					this._advance(), tok = this._makeToken(TOKEN.INCREMENT, '++')
-				} else if (this._peek() === '=') {
-					this._advance(), tok = this._makeToken(TOKEN.PLUS_ASSIGN, '+=')
-				} else {
-					tok = this._makeToken(TOKEN.PLUS, '+')
-				}
+				if (this._peek() === '+') this._advance(), tok = this._makeToken(TOKEN.INCREMENT, '++');
+				else if (this._peek() === '=') this._advance(), tok = this._makeToken(TOKEN.PLUS_ASSIGN, '+=');
+				else tok = this._makeToken(TOKEN.PLUS, '+');
 				break;
 			case '-':
-				if (this._peek() === '-') {
-					this._advance(), tok = this._makeToken(TOKEN.DECREMENT, '--')
-				} else if (this._peek() === '=') {
-					this._advance(), tok = this._makeToken(TOKEN.MINUS_ASSIGN, '-=')
-				} else {
-					tok = this._makeToken(TOKEN.MINUS, '-')
-				}
+				if (this._peek() === '-') this._advance(), tok = this._makeToken(TOKEN.DECREMENT, '--');
+				else if (this._peek() === '=') this._advance(), tok = this._makeToken(TOKEN.MINUS_ASSIGN, '-=');
+				else tok = this._makeToken(TOKEN.MINUS, '-');
 				break;
 			case '*':
-				if (this._peek() === '*') {
-					this._advance(), tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EXPONENT_ASSIGN, '**=')) : this._makeToken(TOKEN.EXPONENT, '**')
-				} else if (this._peek() === '=') {
-					this._advance(), tok = this._makeToken(TOKEN.ASTERISK_ASSIGN, '*=')
-				} else {
-					tok = this._makeToken(TOKEN.ASTERISK, '*')
-				}
+				if (this._peek() === '*') this._advance(), tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EXPONENT_ASSIGN, '**=')) : this._makeToken(TOKEN.EXPONENT, '**');
+				else if (this._peek() === '=') this._advance(), tok = this._makeToken(TOKEN.ASTERISK_ASSIGN, '*=');
+				else tok = this._makeToken(TOKEN.ASTERISK, '*');
 				break;
 			case '/':
-				if (this._peek() === '=') {
-					this._advance(), tok = this._makeToken(TOKEN.SLASH_ASSIGN, '/=')
-				} else {
-					tok = this._makeToken(TOKEN.SLASH, '/')
-				}
+				if (this._peek() === '=') this._advance(), tok = this._makeToken(TOKEN.SLASH_ASSIGN, '/=');
+				else tok = this._makeToken(TOKEN.SLASH, '/');
 				break;
 			case '<':
 				tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.LTE, '<=')) : this._makeToken(TOKEN.LT, '<');
@@ -145,37 +107,26 @@ class Lexer {
 				tok = this._peek() === '|' ? (this._advance(), this._makeToken(TOKEN.OR, '||')) : this._makeToken(TOKEN.ILLEGAL, '|');
 				break;
 			case '?':
-				if (this._peek() === '?') {
-					this._advance(), tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NULLISH_ASSIGN, '??=')) : this._makeToken(TOKEN.NULLISH_COALESCING, '??')
-				} else if (this._peek() === '.') {
-					this._advance(), tok = this._makeToken(TOKEN.OPTIONAL_CHAINING, '?.')
-				} else {
-					tok = this._makeToken(TOKEN.QUESTION, '?')
-				}
+				if (this._peek() === '?') this._advance(), tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NULLISH_ASSIGN, '??=')) : this._makeToken(TOKEN.NULLISH_COALESCING, '??');
+				else if (this._peek() === '.') this._advance(), tok = this._makeToken(TOKEN.OPTIONAL_CHAINING, '?.');
+				else tok = this._makeToken(TOKEN.QUESTION, '?');
 				break;
 			case '.':
 				if (this._peek() === '.' && this.source[this.readPosition + 1] === '.') {
 					this._advance();
 					this._advance();
 					tok = this._makeToken(TOKEN.DOTDOTDOT, '...')
-				} else {
-					tok = this._makeToken(TOKEN.DOT, '.')
-				}
+				} else tok = this._makeToken(TOKEN.DOT, '.');
 				break;
 			case '`':
 				this.templateStack.push(1);
-				return this._readTemplateHead();
+				return this._readTemplatePart();
 			case '{':
-				if (this.templateStack.length > 0 && this.templateStack[this.templateStack.length - 1] === 0) {
-					this.templateStack[this.templateStack.length - 1] = 1;
-					tok = this._makeToken(TOKEN.LBRACE, '{')
-				} else {
-					tok = this._makeToken(TOKEN.LBRACE, '{')
-				}
+				tok = this._makeToken(TOKEN.LBRACE, '{');
 				break;
 			case '}':
-				this.templateStack.pop();
-				return this._readTemplateMiddleOrTail();
+				tok = this._makeToken(TOKEN.RBRACE, '}');
+				break;
 			case '(':
 				tok = this._makeToken(TOKEN.LPAREN, '(');
 				break;
@@ -204,81 +155,54 @@ class Lexer {
 				if (this._isLetter(c)) {
 					const i = this._readIdentifier();
 					return this._makeToken(KEYWORDS[i] || TOKEN.IDENT, i)
-				} else if (this._isDigit(c)) {
-					return this._makeToken(TOKEN.NUMBER, this._readNumber())
-				} else {
-					tok = this._makeToken(TOKEN.ILLEGAL, c)
-				}
+				} else if (this._isDigit(c)) return this._makeToken(TOKEN.NUMBER, this._readNumber());
+				else tok = this._makeToken(TOKEN.ILLEGAL, c)
 		}
 		this._advance();
 		return tok
 	}
 	_readIdentifier() {
 		const p = this.position;
-		while (this._isIdentifierChar(this.ch)) {
-			this._advance()
-		}
+		while (this._isIdentifierChar(this.ch)) this._advance();
 		return this.source.slice(p, this.position)
 	}
 	_readNumber() {
 		const p = this.position;
-		while (this._isDigit(this.ch)) {
-			this._advance()
-		}
+		while (this._isDigit(this.ch)) this._advance();
 		return this.source.slice(p, this.position)
 	}
 	_readString(q) {
 		this._advance();
 		const p = this.position;
-		while (this.ch !== q && this.ch !== null) {
-			this._advance()
-		}
+		while (this.ch !== q && this.ch !== null) this._advance();
 		const s = this.source.slice(p, this.position);
-		if (this.ch !== q) {
-			return this._makeToken(TOKEN.ILLEGAL, s)
-		}
+		if (this.ch !== q) return this._makeToken(TOKEN.ILLEGAL, s);
 		this._advance();
 		return this._makeToken(TOKEN.STRING, s)
 	}
-	_readTemplateHead() {
-		const p = this.position + 1;
-		while (this.ch !== null) {
-			this._advance();
-			if (this.ch === '`') {
-				const l = this.source.slice(p, this.position);
-				this.templateStack.pop();
-				this._advance();
-				return this._makeToken(TOKEN.TEMPLATE_TAIL, l)
-			}
-			if (this.ch === '$' && this._peek() === '{') {
-				const l = this.source.slice(p, this.position);
-				this._advance();
-				this._advance();
-				this.templateStack.push(0);
-				return this._makeToken(TOKEN.TEMPLATE_HEAD, l)
-			}
-		}
-		return this._makeToken(TOKEN.ILLEGAL, 'Unterminated template literal')
-	}
-	_readTemplateMiddleOrTail() {
+	_readTemplatePart() {
 		const p = this.position;
-		while (this.ch !== null) {
-			if (this.ch === '`') {
-				const l = this.source.slice(p, this.position);
-				this.templateStack.pop();
-				this._advance();
-				return this._makeToken(TOKEN.TEMPLATE_TAIL, l)
-			}
+		while (this.ch !== null && this.ch !== '`') {
 			if (this.ch === '$' && this._peek() === '{') {
-				const l = this.source.slice(p, this.position);
+				if (this.position > p) {
+					const l = this.source.slice(p, this.position);
+					return this._makeToken(TOKEN.TEMPLATE_HEAD, l)
+				}
 				this._advance();
 				this._advance();
-				this.templateStack.push(0);
-				return this._makeToken(TOKEN.TEMPLATE_MIDDLE, l)
+				this.templateStack.pop();
+				return this._makeToken(TOKEN.LBRACE, '${')
 			}
 			this._advance()
 		}
-		return this._makeToken(TOKEN.ILLEGAL, 'Unterminated template literal')
+		const l = this.source.slice(p, this.position);
+		if (this.ch === '`') {
+			this._advance();
+			this.templateStack.pop()
+		} else {
+			return this._makeToken(TOKEN.ILLEGAL, `Unterminated template literal`)
+		}
+		return this._makeToken(TOKEN.TEMPLATE_TAIL, l)
 	}
 	_isLetter(c) {
 		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_'
