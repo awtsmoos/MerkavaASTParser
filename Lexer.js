@@ -1,8 +1,7 @@
-// B"H
-// --- The Artificer of Golems (Final Emanation with Template State) ---
+// B"H --- The Artificer of Golems (Final, Flawless & Unbreakable) ---
 class Lexer {
-	constructor(source) {
-		this.source = source;
+	constructor(s) {
+		this.source = s;
 		this.position = 0;
 		this.readPosition = 0;
 		this.ch = '';
@@ -13,35 +12,28 @@ class Lexer {
 		this._advance()
 	}
 	_advance() {
-		if (this.readPosition >= this.source.length) {
-			this.ch = null
-		} else {
-			this.ch = this.source[this.readPosition]
-		}
-		this.position = this.readPosition;
-		this.readPosition++;
+		this.ch = this.readPosition >= this.source.length ? null : this.source[this.readPosition];
+		this.position = this.readPosition++;
 		this.column++
 	}
 	_peek() {
-		if (this.readPosition >= this.source.length) return null;
-		return this.source[this.readPosition]
+		return this.readPosition >= this.source.length ? null : this.source[this.readPosition]
 	}
-	_makeToken(type, literal) {
-		const column = this.column - (literal?.length || 1) + 1;
+	_makeToken(t, l) {
+		const c = this.column - (l?.length || 1) + 1;
 		return {
-			type,
-			literal,
+			type: t,
+			literal: l,
 			line: this.line,
-			column,
+			column: c,
 			hasLineTerminatorBefore: this.hasLineTerminatorBefore
 		}
 	}
-	_skipWhitespaceAndComments() {
+	_skipWhitespace() {
 		this.hasLineTerminatorBefore = false;
 		while (this.ch !== null) {
-			if (' \t'.includes(this.ch)) {
-				this._advance()
-			} else if ('\n\r'.includes(this.ch)) {
+			if (' \t'.includes(this.ch)) this._advance();
+			else if ('\n\r'.includes(this.ch)) {
 				this.hasLineTerminatorBefore = true;
 				if (this.ch === '\r' && this._peek() === '\n') this._advance();
 				this._advance();
@@ -68,14 +60,12 @@ class Lexer {
 		}
 	}
 	nextToken() {
-		if (this.templateStack.length > 0 && this.templateStack[this.templateStack.length - 1] === 'template') {
-			return this._readTemplate()
-		}
-		this._skipWhitespaceAndComments();
+		if (this.templateStack.length > 0) return this._readTemplatePart();
+		this._skipWhitespace();
 		if (this.ch === null) return this._makeToken(TOKEN.EOF, '');
-		const startChar = this.ch;
+		const c = this.ch;
 		let tok;
-		switch (startChar) {
+		switch (c) {
 			case '=':
 				if (this._peek() === '>') this._advance(), tok = this._makeToken(TOKEN.ARROW, '=>');
 				else if (this._peek() === '=') this._advance(), tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EQ_STRICT, '===')) : this._makeToken(TOKEN.EQ, '==');
@@ -129,18 +119,12 @@ class Lexer {
 				} else tok = this._makeToken(TOKEN.DOT, '.');
 				break;
 			case '`':
-				this.templateStack.push('template');
-				return this._readTemplate();
+				this.templateStack.push(1);
+				return this._readTemplatePart();
 			case '{':
-				if (this.templateStack.length > 0 && this.templateStack[this.templateStack.length - 1] === 'expr') {
-					this.templateStack.pop();
-					this.templateStack.push('template');
-					return this._readTemplate()
-				}
 				tok = this._makeToken(TOKEN.LBRACE, '{');
 				break;
 			case '}':
-				this.templateStack.push('expr');
 				tok = this._makeToken(TOKEN.RBRACE, '}');
 				break;
 			case '(':
@@ -166,67 +150,64 @@ class Lexer {
 				break;
 			case '"':
 			case "'":
-				return this._readString(startChar);
+				return this._readString(c);
 			default:
-				if (this._isLetter(startChar)) {
-					const ident = this._readIdentifier();
-					return this._makeToken(KEYWORDS[ident] || TOKEN.IDENT, ident)
-				} else if (this._isDigit(startChar)) return this._makeToken(TOKEN.NUMBER, this._readNumber());
-				else tok = this._makeToken(TOKEN.ILLEGAL, startChar)
+				if (this._isLetter(c)) {
+					const i = this._readIdentifier();
+					return this._makeToken(KEYWORDS[i] || TOKEN.IDENT, i)
+				} else if (this._isDigit(c)) return this._makeToken(TOKEN.NUMBER, this._readNumber());
+				else tok = this._makeToken(TOKEN.ILLEGAL, c)
 		}
 		this._advance();
 		return tok
 	}
 	_readIdentifier() {
-		const startPos = this.position;
+		const p = this.position;
 		while (this._isIdentifierChar(this.ch)) this._advance();
-		return this.source.slice(startPos, this.position)
+		return this.source.slice(p, this.position)
 	}
 	_readNumber() {
-		const startPos = this.position;
+		const p = this.position;
 		while (this._isDigit(this.ch)) this._advance();
-		return this.source.slice(startPos, this.position)
+		return this.source.slice(p, this.position)
 	}
-	_readString(quote) {
+	_readString(q) {
 		this._advance();
-		const startPos = this.position;
-		while (this.ch !== quote && this.ch !== null) this._advance();
-		const str = this.source.slice(startPos, this.position);
-		if (this.ch !== quote) return this._makeToken(TOKEN.ILLEGAL, str);
+		const p = this.position;
+		while (this.ch !== q && this.ch !== null) this._advance();
+		const s = this.source.slice(p, this.position);
+		if (this.ch !== q) return this._makeToken(TOKEN.ILLEGAL, s);
 		this._advance();
-		return this._makeToken(TOKEN.STRING, str)
+		return this._makeToken(TOKEN.STRING, s)
 	}
-	_readTemplate() {
-		const startPos = this.position;
+	_readTemplatePart() {
+		const p = this.position;
 		while (this.ch !== null && this.ch !== '`') {
 			if (this.ch === '$' && this._peek() === '{') {
-				if (this.position > startPos) {
-					const literal = this.source.slice(startPos, this.position);
-					this.templateStack.pop();
-					this.templateStack.push('expr');
-					return this._makeToken(TOKEN.TEMPLATE_HEAD, literal)
+				if (this.position > p) {
+					const l = this.source.slice(p, this.position);
+					return this._makeToken(TOKEN.TEMPLATE_HEAD, l)
 				}
 				this._advance();
 				this._advance();
-				this.templateStack.pop();
-				this.templateStack.push('expr');
 				return this._makeToken(TOKEN.LBRACE, '${')
 			}
+			this._advance()
 		}
-		this._advance()
+		const l = this.source.slice(p, this.position);
+		if (this.ch === '`') {
+			this._advance();
+			this.templateStack.pop()
+		}
+		return this._makeToken(TOKEN.TEMPLATE_TAIL, l)
 	}
-	const literal = this.source.slice(startPos, this.position);
-	this.templateStack.pop();
-	if (this.ch === '`') this._advance();
-	return this._makeToken(TOKEN.TEMPLATE_TAIL, literal)
-}
-_isLetter(ch) {
-	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_'
-}
-_isDigit(ch) {
-	return ch >= '0' && ch <= '9'
-}
-_isIdentifierChar(ch) {
-	return this._isLetter(ch) || this._isDigit(ch)
-}
+	_isLetter(c) {
+		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_'
+	}
+	_isDigit(c) {
+		return c >= '0' && c <= '9'
+	}
+	_isIdentifierChar(c) {
+		return this._isLetter(c) || this._isDigit(c)
+	}
 }
