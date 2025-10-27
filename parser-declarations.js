@@ -97,11 +97,6 @@
 	};
 	
 	// In parser-declarations.js
-
-	// In parser-declarations.js
-
-	// In parser-declarations.js
-
 proto._parseVariableDeclaration = function() {
     const s = this._startNode();
     const kind = this.currToken.literal;
@@ -109,60 +104,52 @@ proto._parseVariableDeclaration = function() {
 
     const declarations = [];
 
-    // This specific do-while structure is critical. It is designed to handle
-    // one or more declarators (e.g., var a = 1, b = 2) without bugs.
+    // THIS IS THE FIX (Part 1): A precise and safe loop.
     do {
-        // If we are on a subsequent declarator, we must consume the comma first.
         if (declarations.length > 0) {
-            this._advance(); // Consume the comma
+            this._advance(); // Only consumes a comma if we are between declarators.
         }
 
-        // Parse the declarator itself (e.g., 'f', or 'f = 3')
         const decl = this._parseVariableDeclarator(kind);
         if (!decl) {
-             // If a declarator is invalid, we must stop parsing this entire statement.
-             // The main `parse` loop's error recovery will take over from here.
-            return null;
+             return null; // Error recovery: stops if a declarator is malformed.
         }
         declarations.push(decl);
 
-        // The loop ONLY continues if the next token is a comma. At the end
-        // of "var f = 3", the next token is EOF, so this condition will correctly be false.
+        // The loop condition is extremely specific: it ONLY continues for a comma.
+        // For your input "var g = t", the token after 't' is EOF. 'EOF' is not a comma,
+        // so the loop correctly terminates immediately after the first pass.
     } while (this._currTokenIs(TOKEN.COMMA));
 
-    // CRITICAL: After the loop finishes (because there are no more commas),
-    // we absolutely MUST consume the statement terminator (a real semicolon or an
-    // implicit one from a newline or EOF). This is what your current code is failing to do correctly.
+    // THIS IS THE FIX (Part 2): Handling the end of the statement.
+    // This call is absolutely critical for correctness.
     this._consumeSemicolon();
 
     return this._finishNode({ type: 'VariableDeclaration', declarations, kind }, s);
 };
-
-
-// Replace this function as well to ensure it integrates perfectly.
+// In parser-declarations.js
 proto._parseVariableDeclarator = function(kind) {
     const s = this._startNode();
-    const id = this._parseBindingPattern();
-    if (!id) return null;
+    const id = this._parseBindingPattern(); // Parses the variable name/pattern.
+    if (!id) return null; // Important for error handling.
 
     let init = null;
     if (this._currTokenIs(TOKEN.ASSIGN)) {
         this._advance(); // Consume '='
         init = this._parseExpression(PRECEDENCE.ASSIGNMENT);
         if (!init) {
-            // An expression was expected but not found, this is a syntax error.
+            // If there's an '=' but no expression, it's a syntax error.
             this._error("Expected an expression after '=' in variable declaration.");
             return null;
         }
-    } else if (kind === 'const') { // This check now works correctly
-        // 'const' requires an initializer.
+    } else if (kind === 'const') {
+        // Enforces that 'const' declarations must have an initializer.
         this._error("'const' declarations must be initialized.");
         return null;
     }
 
     return this._finishNode({ type: 'VariableDeclarator', id, init }, s);
 };
-
 	proto._parseFunction = function(context, isAsync = false) {
 		const s = this._startNode();
 		if (this.currToken.type === TOKEN.FUNCTION) this._advance();
