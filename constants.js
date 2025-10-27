@@ -1,7 +1,7 @@
 // B"H
 // --- The Sefirot and the Aleph-Bet of Syntax ---
-
- const TOKEN = {
+//constants.js
+const TOKEN = {
     EOF: 'EOF', ILLEGAL: 'ILLEGAL',
 
     // Identifiers & Literals
@@ -38,7 +38,7 @@
     EXPONENT_ASSIGN: '**=', NULLISH_ASSIGN: '??=',
 };
 
- const KEYWORDS = {
+const KEYWORDS = {
     'function': TOKEN.FUNCTION, 'let': TOKEN.LET, 'const': TOKEN.CONST, 'var': TOKEN.VAR,
     'return': TOKEN.RETURN, 'if': TOKEN.IF, 'else': TOKEN.ELSE, 'for': TOKEN.FOR,
     'while': TOKEN.WHILE, 'do': TOKEN.DO, 'switch': TOKEN.SWITCH, 'case': TOKEN.CASE,
@@ -51,7 +51,7 @@
     'try': TOKEN.TRY, 'catch': TOKEN.CATCH, 'finally': TOKEN.FINALLY, 'throw': TOKEN.THROW,
 };
 
- const PRECEDENCE = {
+const PRECEDENCE = {
     LOWEST: 0,
     SEQUENCE: 1,      // ,
     ASSIGNMENT: 2,    // =
@@ -71,10 +71,14 @@
     NEW: 16,          // new
 };
 
- const PRECEDENCES = {
+const PRECEDENCES = {
     [TOKEN.ASSIGN]: PRECEDENCE.ASSIGNMENT,
     [TOKEN.PLUS_ASSIGN]: PRECEDENCE.ASSIGNMENT,
     [TOKEN.MINUS_ASSIGN]: PRECEDENCE.ASSIGNMENT,
+    [TOKEN.ASTERISK_ASSIGN]: PRECEDENCE.ASSIGNMENT,
+    [TOKEN.SLASH_ASSIGN]: PRECEDENCE.ASSIGNMENT,
+    [TOKEN.EXPONENT_ASSIGN]: PRECEDENCE.ASSIGNMENT,
+    [TOKEN.NULLISH_ASSIGN]: PRECEDENCE.ASSIGNMENT,
     [TOKEN.QUESTION]: PRECEDENCE.CONDITIONAL,
     [TOKEN.NULLISH_COALESCING]: PRECEDENCE.NULLISH,
     [TOKEN.OR]: PRECEDENCE.OR,

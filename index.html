@@ -7,93 +7,17 @@
     <title>Kabbalistic ES6 AST Parser</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital@1&family=Roboto+Mono&display=swap');
-
-        body {
-            background-color: #1a1a1d;
-            color: #c5c6c7;
-            font-family: 'Roboto Mono', monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0;
-            padding: 20px;
-        }
-
-        h1, h3 {
-            font-family: 'Crimson Text', serif;
-            color: #66fcf1;
-            text-shadow: 0 0 5px #45a29e;
-            text-align: center;
-        }
-
-        .container {
-            display: flex;
-            flex-direction: column;
-            width: 90%;
-            max-width: 1200px;
-            gap: 20px;
-        }
-
-        .io-box {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-        }
-
-        textarea, pre {
-            background-color: #0b0c10;
-            border: 1px solid #45a29e;
-            color: #c5c6c7;
-            padding: 15px;
-            font-family: 'Roboto Mono', monospace;
-            font-size: 14px;
-            border-radius: 5px;
-            height: 300px;
-            resize: vertical;
-        }
-        
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-y: auto;
-        }
-
-        .error {
-            color: #ff6b6b !important;
-            font-weight: bold;
-            border-color: #ff6b6b !important;
-        }
-        
-        .controls {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        button {
-            background-color: #66fcf1;
-            color: #0b0c10;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 5px;
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #45a29e;
-            box-shadow: 0 0 10px #66fcf1;
-        }
-        
-        label {
-            margin-bottom: 5px;
-            font-size: 18px;
-            color: #66fcf1;
-        }
-
+        body { background-color: #1a1a1d; color: #c5c6c7; font-family: 'Roboto Mono', monospace; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        h1, h3 { font-family: 'Crimson Text', serif; color: #66fcf1; text-shadow: 0 0 5px #45a29e; text-align: center; }
+        .container { display: flex; flex-direction: column; width: 90%; max-width: 1200px; gap: 20px; }
+        .io-box { display: flex; flex-direction: column; width: 100%; }
+        textarea, pre { background-color: #0b0c10; border: 1px solid #45a29e; color: #c5c6c7; padding: 15px; font-family: 'Roboto Mono', monospace; font-size: 14px; border-radius: 5px; height: 300px; resize: vertical; }
+        pre { white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; }
+        .error { color: #ff6b6b !important; font-weight: bold; border-color: #ff6b6b !important; }
+        .controls { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
+        button { background-color: #66fcf1; color: #0b0c10; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 5px; transition: background-color 0.3s ease, box-shadow 0.3s ease; }
+        button:hover { background-color: #45a29e; box-shadow: 0 0 10px #66fcf1; }
+        label { margin-bottom: 5px; font-size: 18px; color: #66fcf1; }
     </style>
 </head>
 <body>
@@ -104,18 +28,7 @@
     <div class="container">
         <div class="io-box">
             <label for="js-input">Paste JavaScript Emanation Here:</label>
-            <textarea id="js-input" spellcheck="false">
-import codeStyles from "./style.js";
-
-const lineHeight = 20;
-
-function setup(config) {
-    const defaultStyle = { color: 'white' };
-    return { ...config, ...defaultStyle };
-}
-
-export default setup;
-            </textarea>
+            <textarea id="js-input" spellcheck="false"></textarea>
         </div>
         
         <div class="controls">
@@ -130,100 +43,91 @@ export default setup;
     </div>
     
     <script src="constants.js"></script>
-    <script src="node_helpers.js"></script>
-   
-    
-
     <script src="Lexer.js"></script>
     <script src="parser.js"></script>
-<!-- You can copy and paste this entire script tag into your HTML file -->
-<script>
+    
+    <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- 1. Get references to the HTML elements ---
         const jsInput = document.getElementById('js-input');
         const astOutput = document.getElementById('ast-output');
         const parseButton = document.getElementById('parse-btn');
         const copyButton = document.getElementById('copy-btn');
 
-        // --- 2. Define the core function to parse the code ---
-        // This is rewritten to work with the parser's new error-collecting mechanism.
         const runParser = () => {
-            astOutput.textContent = ''; // Clear previous output
+            astOutput.textContent = '';
             astOutput.classList.remove('error');
 
             if (typeof MerkabahParser === 'undefined') {
-                astOutput.textContent = 'Error: MerkabahParser is not loaded. Ensure parser.js is included and has no errors.';
+                astOutput.textContent = 'Error: MerkabahParser is not loaded. Ensure parser.js is included correctly.';
                 astOutput.classList.add('error');
                 return;
             }
 
             const sourceCode = jsInput.value;
-            // The new parser does not throw errors for syntax issues.
-            // It collects them in an `errors` array, allowing it to find multiple issues in one pass.
+            // The repaired parser collects errors instead of throwing them.
             const parser = new MerkabahParser(sourceCode);
             const ast = parser.parse();
 
             // Check the `errors` array to determine the outcome.
             if (parser.errors.length > 0) {
-                // If there are errors, display them.
                 const errorMessage = "The vessels have shattered. The following transgressions were observed:\n\n" + parser.errors.join('\n');
                 astOutput.textContent = errorMessage;
                 astOutput.classList.add('error');
             } else {
-                // If parsing was successful, display the beautiful AST.
                 astOutput.textContent = JSON.stringify(ast, null, 2);
             }
         };
 
-        // --- 3. Define the function to copy the AST output ---
         const copyAstToClipboard = () => {
             if (!astOutput.textContent || astOutput.classList.contains('error')) {
                 alert('There is no valid AST to copy.');
                 return;
             }
             navigator.clipboard.writeText(astOutput.textContent)
-                .then(() => {
-                    alert('AST copied to clipboard!');
-                })
+                .then(() => alert('AST copied to clipboard!'))
                 .catch(err => {
                     console.error('Failed to copy AST: ', err);
-                    alert('Could not copy AST to clipboard. See the console for more details.');
+                    alert('Could not copy AST. See the console for details.');
                 });
         };
 
-        // --- 4. Attach the functions to the button click events ---
         parseButton.addEventListener('click', runParser);
         copyButton.addEventListener('click', copyAstToClipboard);
 
-        // --- 5. Set the initial JavaScript code to be parsed ---
-        // This uses your example code, which the perfected parser now fully understands.
+        // A more comprehensive example to test the new capabilities
         jsInput.value = /*js*/`
 import defaultExport, { export1 as alias1 } from "my-module";
 import * as name from "my-module";
 
 export const PERFECT_NUMBER = 496;
 
-export function utilityFunction(arg) {
+async function utilityFunction(arg) {
+  const result = await Promise.resolve(arg);
   // A ternary inside a function body
-  return arg ? true : false;
+  return arg ? \`Result is \${result}\` : null;
 }
 
 // Exporting a default arrow function
 export default (a, b) => {
-    let result = a + b;
+    let result = a + b ** 2;
+    do {
+        result--;
+    } while (result > 100);
     return result / 2;
 };
 
-if (name.process(alias1) === true) {
-    let result = utilityFunction(PERFECT_NUMBER);
-    console.log(result);
+for (let x of [1,2,3]) {
+    if (name.process(alias1) === true) {
+        let result = utilityFunction(PERFECT_NUMBER);
+        console.log(result?.value);
+    }
 }
 `;
 
-        // --- 6. Run the parser once automatically on page load ---
+        // Run the parser once on page load
         runParser();
     });
-</script>
+    </script>
 
 </body>
 </html>
