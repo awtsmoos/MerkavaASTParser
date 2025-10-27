@@ -1,5 +1,4 @@
 <!--B"H-->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -62,11 +61,20 @@
         const parseButton = document.getElementById('parse-btn');
         const copyButton = document.getElementById('copy-btn');
 
+        // This function now contains extra checks to ensure the parser is fully assembled.
         const runParser = () => {
             astOutput.textContent = '';
             astOutput.classList.remove('error');
 
+            // --- Unbreakable Safeguard ---
+            if (typeof MerkabahParser === 'undefined' || typeof MerkabahParser.prototype.registerExpressionParsers === 'undefined') {
+                astOutput.textContent = 'FATAL ERROR: The parser scripts failed to load or initialize correctly. Check the browser console for file loading errors.';
+                astOutput.classList.add('error');
+                return;
+            }
+
             const sourceCode = jsInput.value;
+            // The constructor is now safe to call.
             const parser = new MerkabahParser(sourceCode);
             const ast = parser.parse();
 
@@ -94,32 +102,36 @@
         parseButton.addEventListener('click', runParser);
         copyButton.addEventListener('click', copyAstToClipboard);
 
-        // An example with intentional errors to demonstrate non-crashing behavior
-        jsInput.value = /*js*/`
-	import { thing } from "./my-module";
-	
-	// This is a valid class
-	class MyClass {
-	    constructor() {
-	        this.value = 100;
-	    }
-	}
-	
-	// Invalid syntax here: let without a variable
-	let;
-	
-	const PERFECT = 496;
-	
-	// Another error: missing parenthesis
-	if (PERFECT > 100 {
-	    console.log("Greater!");
-	}
-	
-	// This function is valid and should still be parsed
-	export default function() {
-	    return new MyClass();
-	}
-	`;
+        jsInput.value = `
+// This code is designed to test the unbreakable parser.
+// It contains multiple, recoverable syntax errors.
+
+import { thing } from "./my-module";
+
+class MyClass {
+    constructor() {
+        this.value = 100;
+    }
+}
+
+// ERROR 1: let without a variable name
+let;
+
+const PERFECT = 496;
+
+// ERROR 2: missing parenthesis in if statement
+if (PERFECT > 100 {
+    console.log("Greater!");
+}
+
+// This function is valid and SHOULD still be parsed despite previous errors
+export default function() {
+    return new MyClass();
+}
+
+// ERROR 3: an invalid operator
+const y = 5 %& 2;
+`;
         runParser();
     });
     </script>

@@ -4,21 +4,24 @@ class MerkabahParser {
 	constructor(s) {
 		this.l = new Lexer(s);
 		this.errors = [];
-		this.panicMode = false; // When true, we are recovering from a syntax error
+		this.panicMode = false;
 
 		this.prevToken = null;
 		this.currToken = null;
 		this.peekToken = null;
-		this._advance(); this._advance();
 
-		// These will be populated by the other parse-*.js files
+		// Initialize the function maps. They will be populated by the other files.
 		this.prefixParseFns = {};
 		this.infixParseFns = {};
 
-        // Call the registration functions from the other files to attach their methods
-        this.registerExpressionParsers();
+		// The other scripts add these methods to the prototype before the constructor is called.
+		// We MUST call them here to populate the maps.
+		this.registerExpressionParsers();
         this.registerStatementParsers();
         this.registerDeclarationParsers();
+
+		// Now that the parser knows how to handle tokens, we can advance.
+		this._advance(); this._advance();
 	}
 
 	_advance() {
@@ -44,22 +47,16 @@ class MerkabahParser {
 		return { ...startNodeInfo, ...node };
 	}
 
-    // --- GUARANTEED NON-CRASHING ERROR HANDLING ---
 	_error(m) {
-		// Only record the first error in a cascade to avoid noisy, repetitive errors.
 		if (this.panicMode) return;
 		this.panicMode = true;
 		this.errors.push(`[Shevirah] ${m} on line ${this.currToken.line}:${this.currToken.column}. Got token ${this.currToken.type} ("${this.currToken.literal}")`);
 	}
 
-    // Intelligently recovers by finding the next safe place to resume parsing.
 	_synchronize() {
 		this.panicMode = false;
 		while (!this._currTokenIs(TOKEN.EOF)) {
-			// If the previous token was a semicolon, we are likely at a safe point.
 			if (this.prevToken && this.prevToken.type === TOKEN.SEMICOLON) return;
-
-            // Check for keywords that reliably start new, recognizable statements.
 			switch (this.currToken.type) {
 				case TOKEN.CLASS: case TOKEN.FUNCTION: case TOKEN.VAR:
 				case TOKEN.CONST: case TOKEN.LET: case TOKEN.IF:
@@ -69,15 +66,6 @@ class MerkabahParser {
 			}
 			this._advance();
 		}
-	}
-
-	_expect(t) {
-		if (this._currTokenIs(t)) {
-			this._advance();
-			return true;
-		}
-		this._error(`Expected next token to be ${t}`);
-		return false;
 	}
     
     _consumeSemicolon() {
@@ -93,27 +81,36 @@ class MerkabahParser {
 	_getPrecedence(t) { return PRECEDENCES[t.type] || PRECEDENCE.LOWEST; }
 
 	// --- THE MAIN PARSING LOOP ---
+	
+	
 	parse() {
-		const program = this._startNode();
-		program.type = 'Program';
-		program.body = [];
-		program.sourceType = 'module';
-
-		while (!this._currTokenIs(TOKEN.EOF)) {
-			// If we are in panic mode, synchronize before attempting to parse again.
-			if (this.panicMode) this._synchronize();
-			
-			// This is the final guarantee. No internal crash can stop the loop.
-			try {
-				const stmt = this._parseDeclaration(); // Delegate to declaration parser
-				if (stmt) { // A null stmt means a valid but empty statement (like a semicolon) was parsed
-					program.body.push(stmt);
-				}
-			} catch (e) {
-				this._error("Fatal parser state encountered: " + e.message + ". Attempting recovery.");
-				this._synchronize();
-			}
-		}
-		return this._finishNode(program, program);
+	    const program = this._startNode();
+	    program.type = 'Program';
+	    program.body = [];
+	    program.sourceType = 'module';
+	
+	    while (!this._currTokenIs(TOKEN.EOF)) {
+	        // First, check if we are recovering from a previous error.
+	        if (this.panicMode) {
+	            this._synchronize();
+	            // CRITICAL: After synchronizing, restart the loop from the new, safe token.
+	            // Do not attempt to parse anything else in this iteration.
+	            continue; 
+	        }
+	        
+	        try {
+	            const stmt = this._parseDeclaration();
+	            if (stmt) {
+	                program.body.push(stmt);
+	            } 
+	            // This handles valid-but-empty statements like semicolons to prevent loops.
+	            else if (!this.panicMode && !this._currTokenIs(TOKEN.EOF)) {
+	                this._advance();
+	            }
+	        } catch (e) {
+	            this._error("Fatal parser state encountered: " + e.message + ". Attempting recovery.");
+	        }
+	    }
+	    return this._finishNode(program, program);
 	}
 }
