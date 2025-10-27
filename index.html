@@ -1,4 +1,5 @@
 <!--B"H-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -42,9 +43,17 @@
         </div>
     </div>
     
+    <!-- Load scripts in the correct, required order -->
     <script src="constants.js"></script>
     <script src="Lexer.js"></script>
-    <script src="parser.js"></script>
+
+    <!-- The core parser MUST be loaded first -->
+    <script src="parser-core.js"></script>
+
+    <!-- Load the component files that extend the parser's prototype -->
+    <script src="parser-expressions.js"></script>
+    <script src="parser-statements.js"></script>
+    <script src="parser-declarations.js"></script>
     
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -57,22 +66,13 @@
             astOutput.textContent = '';
             astOutput.classList.remove('error');
 
-            if (typeof MerkabahParser === 'undefined') {
-                astOutput.textContent = 'Error: MerkabahParser is not loaded. Ensure parser.js is included correctly.';
-                astOutput.classList.add('error');
-                return;
-            }
-
             const sourceCode = jsInput.value;
-            // The repaired parser collects errors instead of throwing them.
             const parser = new MerkabahParser(sourceCode);
             const ast = parser.parse();
 
-            // Check the `errors` array to determine the outcome.
             if (parser.errors.length > 0) {
                 const errorMessage = "The vessels have shattered. The following transgressions were observed:\n\n" + parser.errors.join('\n');
                 astOutput.textContent = errorMessage;
-                astOutput.classList.add('error');
             } else {
                 astOutput.textContent = JSON.stringify(ast, null, 2);
             }
@@ -94,37 +94,32 @@
         parseButton.addEventListener('click', runParser);
         copyButton.addEventListener('click', copyAstToClipboard);
 
-        // A more comprehensive example to test the new capabilities
+        // An example with intentional errors to demonstrate non-crashing behavior
         jsInput.value = /*js*/`
-import defaultExport, { export1 as alias1 } from "my-module";
-import * as name from "my-module";
-
-export const PERFECT_NUMBER = 496;
-
-async function utilityFunction(arg) {
-  const result = await Promise.resolve(arg);
-  // A ternary inside a function body
-  return arg ? \`Result is \${result}\` : null;
-}
-
-// Exporting a default arrow function
-export default (a, b) => {
-    let result = a + b ** 2;
-    do {
-        result--;
-    } while (result > 100);
-    return result / 2;
-};
-
-for (let x of [1,2,3]) {
-    if (name.process(alias1) === true) {
-        let result = utilityFunction(PERFECT_NUMBER);
-        console.log(result?.value);
-    }
-}
-`;
-
-        // Run the parser once on page load
+	import { thing } from "./my-module";
+	
+	// This is a valid class
+	class MyClass {
+	    constructor() {
+	        this.value = 100;
+	    }
+	}
+	
+	// Invalid syntax here: let without a variable
+	let;
+	
+	const PERFECT = 496;
+	
+	// Another error: missing parenthesis
+	if (PERFECT > 100 {
+	    console.log("Greater!");
+	}
+	
+	// This function is valid and should still be parsed
+	export default function() {
+	    return new MyClass();
+	}
+	`;
         runParser();
     });
     </script>
