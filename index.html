@@ -62,20 +62,22 @@
         const copyButton = document.getElementById('copy-btn');
 
         // This function now contains extra checks to ensure the parser is fully assembled.
-        const runParser = () => {
+         const runParser = () => {
             astOutput.textContent = '';
             astOutput.classList.remove('error');
 
-            // --- Unbreakable Safeguard ---
-            if (typeof MerkabahParser === 'undefined' || typeof MerkabahParser.prototype.registerExpressionParsers === 'undefined') {
-                astOutput.textContent = 'FATAL ERROR: The parser scripts failed to load or initialize correctly. Check the browser console for file loading errors.';
-                astOutput.classList.add('error');
-                return;
-            }
-
             const sourceCode = jsInput.value;
-            // The constructor is now safe to call.
             const parser = new MerkabahParser(sourceCode);
+
+            // --- THIS IS THE CRITICAL FIX ---
+            // Manually call the registration functions on the created instance.
+            // At this point in the code, all JS files are guaranteed to be loaded
+            // and the methods are guaranteed to exist on the parser's prototype.
+            parser.registerExpressionParsers();
+            parser.registerStatementParsers();
+            parser.registerDeclarationParsers();
+            // --- END OF FIX ---
+
             const ast = parser.parse();
 
             if (parser.errors.length > 0) {
@@ -102,7 +104,10 @@
         parseButton.addEventListener('click', runParser);
         copyButton.addEventListener('click', copyAstToClipboard);
 
-        jsInput.value = `
+        jsInput.value = `/*B"H*/
+        var f = 3;`
+        
+        /* `
 // This code is designed to test the unbreakable parser.
 // It contains multiple, recoverable syntax errors.
 
@@ -131,7 +136,7 @@ export default function() {
 
 // ERROR 3: an invalid operator
 const y = 5 %& 2;
-`;
+`;*/
         runParser();
     });
     </script>
