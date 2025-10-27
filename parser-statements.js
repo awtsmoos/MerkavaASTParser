@@ -15,26 +15,52 @@
 		}
 	};
 
+	// In parser-statements.js
+
 	proto._parseBlockStatement = function() {
 		const s = this._startNode();
 		this._expect(TOKEN.LBRACE);
 		const body = [];
 		while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
+			// This now correctly relies on the main error handling (try/catch in the parse() loop)
+			// to deal with bad statements inside a block.
 			const stmt = this._parseDeclaration();
 			if (stmt) {
 				body.push(stmt);
 			} else {
-                this._advance(); // Recover from bad statement
+                // If a statement could not be parsed, we MUST break the loop.
+                // The main `parse` function's recovery will handle advancing the token.
+                // Blindly advancing here was the original bug.
+                break;
             }
 		}
 		this._expect(TOKEN.RBRACE);
-		return this._finishNode({ type: 'BlockStatement', body }, s); // THIS RETURN WAS MISSING
+		return this._finishNode({ type: 'BlockStatement', body }, s);
 	};
+
+	// In parser-statements.js
 
 	proto._parseExpressionStatement = function() {
 		const s = this._startNode();
+		
+		// An expression statement cannot start with these tokens.
+		// Checking this prevents trying to parse things that are obviously declarations.
+		if(this.currToken.type === TOKEN.FUNCTION || this.currToken.type === TOKEN.CLASS || this.currToken.type === TOKEN.LET) {
+			return null;
+		}
+
 		const expr = this._parseExpression(PRECEDENCE.LOWEST);
-		if (!expr) return null;
+		
+		// If _parseExpression failed (e.g., due to an illegal token),
+		// it will have already thrown an error, which bubbles up.
+		// We should not proceed if the expression is invalid.
+		if (!expr) {
+			// This check handles cases where _parseExpression might return null 
+			// without throwing (though the current design makes that unlikely).
+			// Returning null here tells the main loop that this wasn't a valid statement.
+			return null; 
+		}
+
 		this._consumeSemicolon();
 		return this._finishNode({ type: 'ExpressionStatement', expression: expr }, s);
 	};

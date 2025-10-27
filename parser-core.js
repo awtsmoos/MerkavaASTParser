@@ -20,6 +20,15 @@ class MerkabahParser {
 		this.currToken = this.l.nextToken();
 		this.peekToken = this.l.nextToken();
 	}
+	
+	reinitialize(s) {
+		this.l = new Lexer(s);
+		this.errors = [];
+		this.panicMode = false;
+		this.prevToken = null;
+		this.currToken = this.l.nextToken();
+		this.peekToken = this.l.nextToken();
+	}
 
 	_advance() {
 		this.prevToken = this.currToken;
@@ -31,43 +40,42 @@ class MerkabahParser {
 	_peekTokenIs(t) { return this.peekToken.type === t; }
 
     // --- REBUILT HELPER FUNCTIONS ---
-	_startNode() {
-		// This captures the starting point of a potential node.
-		return {
-			start: this.currToken.position, // Use absolute position
-			loc: { start: { line: this.currToken.line, column: this.currToken.column } }
-		};
-	}
+	
+	// In parser-core.js
 
-	/***********************************************************************
-	*
-	*  --- CRITICAL FIX: THE CORRECTED _finishNode FUNCTION ---
-	*
-	*  This version prevents the crash by first creating a complete node
-	*  object and then adding the end location data to it. This ensures
-	*  the `loc` property always exists before we try to modify it.
-	*
-	***********************************************************************/
+	// --- REPLACEMENT FOR _startNode ---
+	// This version ONLY uses properties that your Lexer actually creates.
+	_startNode() {
+	    return {
+	        loc: {
+	            start: {
+	                line: this.currToken.line,
+	                column: this.currToken.column
+	            }
+	        }
+	    };
+	}
+	
+	
+	// --- REPLACEMENT FOR _finishNode ---
+	// This is the definitive, crash-proof version.
 	_finishNode(node, startNodeInfo) {
-		// First, create the combined node object.
-		// It will now correctly have `start`, `loc: { start: ... }`, and other properties.
-		const combinedNode = { ...startNodeInfo, ...node };
+	    // 1. Combine the nodes. This guarantees `combinedNode.loc` exists.
+	    const combinedNode = { ...startNodeInfo, ...node };
 	
-		// The end of a node is the end of the last token that was part of it.
-		// `this.prevToken` correctly holds this last token after `_advance()` is called.
-		const endToken = this.prevToken;
+	    // 2. Get the token that ended the node. This is the last token we consumed.
+	    const endToken = this.prevToken;
 	
-		// Now that `combinedNode.loc` is guaranteed to exist, we can safely
-		// add the end location properties to it.
-		if (endToken) {
-			combinedNode.end = endToken.position + (endToken.literal?.length || 0);
-			combinedNode.loc.end = {
-				line: endToken.line,
-				column: endToken.column + (endToken.literal?.length || 0)
-			};
-		}
+	    // 3. Safely add the end location using ONLY properties that exist.
+	    if (endToken) {
+	        combinedNode.loc.end = {
+	            line: endToken.line,
+	            // The end column is the token's starting column plus its length.
+	            column: endToken.column + (endToken.literal?.length || 0)
+	        };
+	    }
 	
-		return combinedNode;
+	    return combinedNode;
 	}
     // --- END REBUILT HELPERS ---
 
@@ -118,51 +126,75 @@ class MerkabahParser {
 		}
 	}
     
+    // In parser-core.js
+
     _consumeSemicolon() {
+        // Case 1: An explicit semicolon exists. Consume it and we are done.
         if (this._currTokenIs(TOKEN.SEMICOLON)) {
             this._advance();
             return;
         }
-        // Automatic Semicolon Insertion rules are simplified here.
-        if (this.currToken.hasLineTerminatorBefore || this._currTokenIs(TOKEN.RBRACE) || this._currTokenIs(TOKEN.EOF)) {
-            return;
-        }
-    }
 
+        // Case 2: Automatic Semicolon Insertion (ASI) rules.
+        // A semicolon is automatically inserted if:
+        //  - The next token is a '}'
+        //  - The end of the entire file (EOF) has been reached.
+        //  - There is a line terminator (newline) between the previous token and the current one.
+        if (this._currTokenIs(TOKEN.RBRACE) || this._currTokenIs(TOKEN.EOF) || this.currToken.hasLineTerminatorBefore) {
+            return; // ASI applies, so we do nothing and return successfully.
+        }
+
+        // If neither of the above is true, a semicolon was syntactically required.
+        // This is not always an error (e.g., the end of a `for` loop part), 
+        // but for a variable declaration statement, the calling function expects one.
+        // The calling function will throw an error if it doesn't see a required token next.
+    }
+    
+    
 	_getPrecedence(t) { return PRECEDENCES[t.type] || PRECEDENCE.LOWEST; }
 
 	// --- THE MAIN PARSING LOOP (REFORGED) ---
+	// In parser-core.js
+
+	// --- THE MAIN PARSING LOOP (REFORGED AND UNBREAKABLE) ---
+		// --- THE MAIN PARSING LOOP (REFORGED AND UNBREAKABLE) ---
 	parse() {
 	    const program = {
-            type: 'Program',
-            body: [],
-            sourceType: 'module',
-            loc: { start: { line: 1, column: 0 } } // Placeholder start
-        };
+	        type: 'Program',
+	        body: [],
+	        sourceType: 'module',
+	        loc: { start: { line: 1, column: 0 } }
+	    };
 	
+	    // The loop continues as long as we are not on the End-Of-File token.
 	    while (!this._currTokenIs(TOKEN.EOF)) {
 	        try {
+	            // Attempt to parse a top-level statement or declaration.
 	            const stmt = this._parseDeclaration();
+	            
 	            if (stmt) {
+	                // If we successfully got a statement, add it to our program's body.
 	                program.body.push(stmt);
-	            } 
-	            else if (!this.panicMode) {
-                    // If parsing returns nothing but we're not in panic,
-                    // it's a stray token. Advance to prevent infinite loops.
-	                this._advance();
+	            } else if (!this.panicMode) {
+	                // THIS IS THE GUARDIAN CLAUSE AGAINST FREEZING:
+	                // If _parseDeclaration returned null and we are NOT in panic mode,
+	                // it means we encountered a token that cannot start a statement.
+	                // To prevent an infinite loop, we must throw an error to trigger
+	                // recovery, which will advance the token.
+	                this._error(`Unexpected token: "${this.currToken.literal}" cannot start a statement.`);
 	            }
+	            
 	        } catch (e) {
-                // This catch block is ESSENTIAL.
-                // It catches the controlled error from _error() or any other REAL runtime error.
-	            if (!this.errors.includes(e.message)) {
-                   this.errors.push(`[FATAL] Parser crashed: ${e.message}. Attempting recovery.`);
-                }
-                this._synchronize();
+	            // If any parsing function throws an error, we catch it here.
+	            // The _synchronize function will advance the token stream until it finds
+	            // a safe place to resume parsing, preventing a crash.
+	            this._synchronize();
 	        }
 	    }
-        // Finalize the Program node's location data
-        const endToken = this.prevToken || this.currToken;
-        program.loc.end = { line: endToken.line, column: endToken.column };
+	    
+	    // Finalize the Program node's location data
+	    const endToken = this.prevToken || this.currToken;
+	    program.loc.end = { line: endToken.line, column: endToken.column + (endToken.literal?.length || 0) };
 	    return program;
 	}
 }

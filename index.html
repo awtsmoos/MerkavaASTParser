@@ -61,28 +61,34 @@
         const parseButton = document.getElementById('parse-btn');
         const copyButton = document.getElementById('copy-btn');
 
-        // This function now contains extra checks to ensure the parser is fully assembled.
-         const runParser = () => {
+        // --- THE UNBREAKABLE ASSEMBLY ---
+        // We create the parser object ONLY ONCE, after we are 100% certain
+        // all component files have been loaded and executed by the browser.
+        const parser = new MerkabahParser(''); // Create a reusable parser instance
+
+        // The registration of parsing functions also only needs to happen ONCE.
+        // These methods are now guaranteed to exist on the prototype.
+        parser.registerExpressionParsers();
+        parser.registerStatementParsers();
+        parser.registerDeclarationParsers();
+        // --- END OF ASSEMBLY ---
+
+        const runParser = () => {
             astOutput.textContent = '';
             astOutput.classList.remove('error');
-
             const sourceCode = jsInput.value;
-            const parser = new MerkabahParser(sourceCode);
 
-            // --- THIS IS THE CRITICAL FIX ---
-            // Manually call the registration functions on the created instance.
-            // At this point in the code, all JS files are guaranteed to be loaded
-            // and the methods are guaranteed to exist on the parser's prototype.
-            parser.registerExpressionParsers();
-            parser.registerStatementParsers();
-            parser.registerDeclarationParsers();
-            // --- END OF FIX ---
+            // --- USE THE FULLY-BUILT PARSER ---
+            // Re-initialize the parser with the new source code. This is
+            // vastly more efficient and avoids all race conditions.
+            parser.reinitialize(sourceCode); // We will add this method.
 
             const ast = parser.parse();
 
             if (parser.errors.length > 0) {
                 const errorMessage = "The vessels have shattered. The following transgressions were observed:\n\n" + parser.errors.join('\n');
                 astOutput.textContent = errorMessage;
+                astOutput.classList.add('error'); // Make errors visually distinct
             } else {
                 astOutput.textContent = JSON.stringify(ast, null, 2);
             }
@@ -90,8 +96,7 @@
 
         const copyAstToClipboard = () => {
             if (!astOutput.textContent || astOutput.classList.contains('error')) {
-                alert('There is no valid AST to copy.');
-                return;
+                alert('There is no valid AST to copy.'); return;
             }
             navigator.clipboard.writeText(astOutput.textContent)
                 .then(() => alert('AST copied to clipboard!'))
@@ -104,40 +109,8 @@
         parseButton.addEventListener('click', runParser);
         copyButton.addEventListener('click', copyAstToClipboard);
 
-        jsInput.value = `/*B"H*/
-        var f = 3;`
-        
-        /* `
-// This code is designed to test the unbreakable parser.
-// It contains multiple, recoverable syntax errors.
-
-import { thing } from "./my-module";
-
-class MyClass {
-    constructor() {
-        this.value = 100;
-    }
-}
-
-// ERROR 1: let without a variable name
-let;
-
-const PERFECT = 496;
-
-// ERROR 2: missing parenthesis in if statement
-if (PERFECT > 100 {
-    console.log("Greater!");
-}
-
-// This function is valid and SHOULD still be parsed despite previous errors
-export default function() {
-    return new MyClass();
-}
-
-// ERROR 3: an invalid operator
-const y = 5 %& 2;
-`;*/
-        runParser();
+        jsInput.value = `/*B"H*/\nvar f = 3;`; // Set initial text for testing
+        runParser(); // Initial parse
     });
     </script>
 

@@ -30,9 +30,103 @@ class Lexer {
 		return this.source[this.readPosition];
 	}
 
-	_makeToken(type, literal) {
-		const col = this.column - (literal?.length || (this.ch === null ? 0 : 1));
-		return { type, literal, line: this.line, column: col, hasLineTerminatorBefore: this.hasLineTerminatorBefore };
+	// In Lexer.js -- REPLACE THESE TWO METHODS
+
+	_makeToken(type, literal, startColumn, startLine) {
+		const col = startColumn || this.column - (literal?.length || (this.ch === null ? 0 : 1));
+        const line = startLine || this.line;
+		return { type, literal, line: line, column: col, hasLineTerminatorBefore: this.hasLineTerminatorBefore };
+	}
+
+	nextToken() {
+		if (this.templateStack.length > 0 && this.ch === '}') {
+			return this._readTemplateMiddleOrTail();
+		}
+		
+		this._skipWhitespace();
+
+        // --- THIS IS THE FIX ---
+        // We capture the starting line and column *before* processing the token.
+        const startLine = this.line;
+        const startColumn = this.column;
+
+		if (this.ch === null) return this._makeToken(TOKEN.EOF, '', startColumn, startLine);
+        // --- END OF FIX ---
+
+		const c = this.ch;
+		let tok;
+
+		switch (c) {
+			case '=':
+				if (this._peek() === '>') { this._advance(); tok = this._makeToken(TOKEN.ARROW, '=>', startColumn); }
+				else if (this._peek() === '=') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EQ_STRICT, '===', startColumn)) : this._makeToken(TOKEN.EQ, '==', startColumn); }
+				else { tok = this._makeToken(TOKEN.ASSIGN, '=', startColumn); }
+				break;
+			case '!':
+				if (this._peek() === '=') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NOT_EQ_STRICT, '!==', startColumn)) : this._makeToken(TOKEN.NOT_EQ, '!=', startColumn); }
+				else { tok = this._makeToken(TOKEN.BANG, '!', startColumn); }
+				break;
+			case '+':
+				if (this._peek() === '+') { this._advance(); tok = this._makeToken(TOKEN.INCREMENT, '++', startColumn); }
+				else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.PLUS_ASSIGN, '+=', startColumn); }
+				else { tok = this._makeToken(TOKEN.PLUS, '+', startColumn); }
+				break;
+			case '-':
+				if (this._peek() === '-') { this._advance(); tok = this._makeToken(TOKEN.DECREMENT, '--', startColumn); }
+				else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MINUS_ASSIGN, '-=', startColumn); }
+				else { tok = this._makeToken(TOKEN.MINUS, '-', startColumn); }
+				break;
+			case '*':
+				if (this._peek() === '*') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EXPONENT_ASSIGN, '**=', startColumn)) : this._makeToken(TOKEN.EXPONENT, '**', startColumn); }
+				else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.ASTERISK_ASSIGN, '*=', startColumn); }
+				else { tok = this._makeToken(TOKEN.ASTERISK, '*', startColumn); }
+				break;
+			case '/':
+				if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.SLASH_ASSIGN, '/=', startColumn); }
+				else { tok = this._makeToken(TOKEN.SLASH, '/', startColumn); }
+				break;
+				
+			 case '%':
+	                if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MODULO_ASSIGN, '%=', startColumn); }
+	                else { tok = this._makeToken(TOKEN.MODULO, '%', startColumn); }
+	                break;
+			case '<': tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.LTE, '<=', startColumn)) : this._makeToken(TOKEN.LT, '<', startColumn); break;
+			case '>': tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.GTE, '>=', startColumn)) : this._makeToken(TOKEN.GT, '>', startColumn); break;
+			case '&': tok = this._peek() === '&' ? (this._advance(), this._makeToken(TOKEN.AND, '&&', startColumn)) : this._makeToken(TOKEN.ILLEGAL, '&', startColumn); break;
+			case '|': tok = this._peek() === '|' ? (this._advance(), this._makeToken(TOKEN.OR, '||', startColumn)) : this._makeToken(TOKEN.ILLEGAL, '|', startColumn); break;
+			case '?':
+				if (this._peek() === '?') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NULLISH_ASSIGN, '??=', startColumn)) : this._makeToken(TOKEN.NULLISH_COALESCING, '??', startColumn); }
+				else if (this._peek() === '.') { this._advance(); tok = this._makeToken(TOKEN.OPTIONAL_CHAINING, '?.', startColumn); }
+				else { tok = this._makeToken(TOKEN.QUESTION, '?', startColumn); }
+				break;
+			case '.':
+				if (this._peek() === '.' && this.source[this.readPosition + 1] === '.') { this._advance(); this._advance(); tok = this._makeToken(TOKEN.DOTDOTDOT, '...', startColumn); }
+				else { tok = this._makeToken(TOKEN.DOT, '.', startColumn); }
+				break;
+			case '`': this.templateStack.push(true); return this._readTemplateHead();
+			case '{': tok = this._makeToken(TOKEN.LBRACE, '{', startColumn); break;
+			case '}': tok = this._makeToken(TOKEN.RBRACE, '}', startColumn); break;
+			case '(': tok = this._makeToken(TOKEN.LPAREN, '(', startColumn); break;
+			case ')': tok = this._makeToken(TOKEN.RPAREN, ')', startColumn); break;
+			case '[': tok = this._makeToken(TOKEN.LBRACKET, '[', startColumn); break;
+			case ']': tok = this._makeToken(TOKEN.RBRACKET, ']', startColumn); break;
+			case ',': tok = this._makeToken(TOKEN.COMMA, ',', startColumn); break;
+			case ';': tok = this._makeToken(TOKEN.SEMICOLON, ';', startColumn); break;
+			case ':': tok = this._makeToken(TOKEN.COLON, ':', startColumn); break;
+			case '"': case "'": return this._readString(c); // _readString will call makeToken with correct position
+			default:
+				if (this._isLetter(c)) {
+					const ident = this._readIdentifier();
+					return this._makeToken(KEYWORDS[ident] || TOKEN.IDENT, ident, startColumn);
+				} else if (this._isDigit(c)) {
+					return this._makeToken(TOKEN.NUMBER, this._readNumber(), startColumn);
+				} else {
+					tok = this._makeToken(TOKEN.ILLEGAL, c, startColumn);
+				}
+		}
+
+		this._advance();
+		return tok;
 	}
 
 	_skipWhitespace() {
@@ -66,84 +160,7 @@ class Lexer {
 		}
 	}
 
-	nextToken() {
-		if (this.templateStack.length > 0 && this.ch === '}') {
-			return this._readTemplateMiddleOrTail();
-		}
-		
-		this._skipWhitespace();
-		if (this.ch === null) return this._makeToken(TOKEN.EOF, '');
-
-		const c = this.ch;
-		let tok;
-
-		switch (c) {
-			case '=':
-				if (this._peek() === '>') { this._advance(); tok = this._makeToken(TOKEN.ARROW, '=>'); }
-				else if (this._peek() === '=') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EQ_STRICT, '===')) : this._makeToken(TOKEN.EQ, '=='); }
-				else { tok = this._makeToken(TOKEN.ASSIGN, '='); }
-				break;
-			case '!':
-				if (this._peek() === '=') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NOT_EQ_STRICT, '!==')) : this._makeToken(TOKEN.NOT_EQ, '!='); }
-				else { tok = this._makeToken(TOKEN.BANG, '!'); }
-				break;
-			case '+':
-				if (this._peek() === '+') { this._advance(); tok = this._makeToken(TOKEN.INCREMENT, '++'); }
-				else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.PLUS_ASSIGN, '+='); }
-				else { tok = this._makeToken(TOKEN.PLUS, '+'); }
-				break;
-			case '-':
-				if (this._peek() === '-') { this._advance(); tok = this._makeToken(TOKEN.DECREMENT, '--'); }
-				else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MINUS_ASSIGN, '-='); }
-				else { tok = this._makeToken(TOKEN.MINUS, '-'); }
-				break;
-			case '*':
-				if (this._peek() === '*') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EXPONENT_ASSIGN, '**=')) : this._makeToken(TOKEN.EXPONENT, '**'); }
-				else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.ASTERISK_ASSIGN, '*='); }
-				else { tok = this._makeToken(TOKEN.ASTERISK, '*'); }
-				break;
-			case '/':
-				if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.SLASH_ASSIGN, '/='); }
-				else { tok = this._makeToken(TOKEN.SLASH, '/'); }
-				break;
-			case '<': tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.LTE, '<=')) : this._makeToken(TOKEN.LT, '<'); break;
-			case '>': tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.GTE, '>=')) : this._makeToken(TOKEN.GT, '>'); break;
-			case '&': tok = this._peek() === '&' ? (this._advance(), this._makeToken(TOKEN.AND, '&&')) : this._makeToken(TOKEN.ILLEGAL, '&'); break;
-			case '|': tok = this._peek() === '|' ? (this._advance(), this._makeToken(TOKEN.OR, '||')) : this._makeToken(TOKEN.ILLEGAL, '|'); break;
-			case '?':
-				if (this._peek() === '?') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NULLISH_ASSIGN, '??=')) : this._makeToken(TOKEN.NULLISH_COALESCING, '??'); }
-				else if (this._peek() === '.') { this._advance(); tok = this._makeToken(TOKEN.OPTIONAL_CHAINING, '?.'); }
-				else { tok = this._makeToken(TOKEN.QUESTION, '?'); }
-				break;
-			case '.':
-				if (this._peek() === '.' && this.source[this.readPosition + 1] === '.') { this._advance(); this._advance(); tok = this._makeToken(TOKEN.DOTDOTDOT, '...'); }
-				else { tok = this._makeToken(TOKEN.DOT, '.'); }
-				break;
-			case '`': this.templateStack.push(true); return this._readTemplateHead();
-			case '{': tok = this._makeToken(TOKEN.LBRACE, '{'); break;
-			case '}': tok = this._makeToken(TOKEN.RBRACE, '}'); break;
-			case '(': tok = this._makeToken(TOKEN.LPAREN, '('); break;
-			case ')': tok = this._makeToken(TOKEN.RPAREN, ')'); break;
-			case '[': tok = this._makeToken(TOKEN.LBRACKET, '['); break;
-			case ']': tok = this._makeToken(TOKEN.RBRACKET, ']'); break;
-			case ',': tok = this._makeToken(TOKEN.COMMA, ','); break;
-			case ';': tok = this._makeToken(TOKEN.SEMICOLON, ';'); break;
-			case ':': tok = this._makeToken(TOKEN.COLON, ':'); break;
-			case '"': case "'": return this._readString(c);
-			default:
-				if (this._isLetter(c)) {
-					const ident = this._readIdentifier();
-					return this._makeToken(KEYWORDS[ident] || TOKEN.IDENT, ident);
-				} else if (this._isDigit(c)) {
-					return this._makeToken(TOKEN.NUMBER, this._readNumber());
-				} else {
-					tok = this._makeToken(TOKEN.ILLEGAL, c);
-				}
-		}
-
-		this._advance();
-		return tok;
-	}
+	
 	
 	_readTemplateHead() {
 		this._advance();

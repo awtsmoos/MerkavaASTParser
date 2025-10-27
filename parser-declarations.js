@@ -23,6 +23,7 @@
 				return this._parseStatement();
 		}
 	};
+    
 
 	proto._parseBindingPattern = function() {
 		if (this._currTokenIs(TOKEN.LBRACE)) return this._parseObjectPattern();
@@ -95,34 +96,72 @@
 		return this._finishNode({ type: 'ArrayPattern', elements }, s);
 	};
 	
-	proto._parseVariableDeclaration = function() {
-		const s = this._startNode();
-		const kind = this.currToken.literal;
-		this._advance();
-		const declarations = [];
-		do {
-			const decl = this._parseVariableDeclarator();
-			if (!decl) return null; 
-			declarations.push(decl);
-            if (!this._currTokenIs(TOKEN.COMMA)) break;
-            this._advance(); // Consume comma
-		} while (true);
-		this._consumeSemicolon();
-		return this._finishNode({ type: 'VariableDeclaration', declarations, kind }, s);
-	};
+	// In parser-declarations.js
 
-	proto._parseVariableDeclarator = function() {
-		const s = this._startNode();
-		const id = this._parseBindingPattern();
-		if (!id) return null; 
-		let init = null;
-		if (this._currTokenIs(TOKEN.ASSIGN)) {
-			this._advance();
-			init = this._parseExpression(PRECEDENCE.ASSIGNMENT);
-			if (!init) return null;
-		}
-		return this._finishNode({ type: 'VariableDeclarator', id, init }, s);
-	};
+	// In parser-declarations.js
+
+	// In parser-declarations.js
+
+proto._parseVariableDeclaration = function() {
+    const s = this._startNode();
+    const kind = this.currToken.literal;
+    this._advance(); // Consume 'var', 'let', or 'const'
+
+    const declarations = [];
+
+    // This specific do-while structure is critical. It is designed to handle
+    // one or more declarators (e.g., var a = 1, b = 2) without bugs.
+    do {
+        // If we are on a subsequent declarator, we must consume the comma first.
+        if (declarations.length > 0) {
+            this._advance(); // Consume the comma
+        }
+
+        // Parse the declarator itself (e.g., 'f', or 'f = 3')
+        const decl = this._parseVariableDeclarator(kind);
+        if (!decl) {
+             // If a declarator is invalid, we must stop parsing this entire statement.
+             // The main `parse` loop's error recovery will take over from here.
+            return null;
+        }
+        declarations.push(decl);
+
+        // The loop ONLY continues if the next token is a comma. At the end
+        // of "var f = 3", the next token is EOF, so this condition will correctly be false.
+    } while (this._currTokenIs(TOKEN.COMMA));
+
+    // CRITICAL: After the loop finishes (because there are no more commas),
+    // we absolutely MUST consume the statement terminator (a real semicolon or an
+    // implicit one from a newline or EOF). This is what your current code is failing to do correctly.
+    this._consumeSemicolon();
+
+    return this._finishNode({ type: 'VariableDeclaration', declarations, kind }, s);
+};
+
+
+// Replace this function as well to ensure it integrates perfectly.
+proto._parseVariableDeclarator = function(kind) {
+    const s = this._startNode();
+    const id = this._parseBindingPattern();
+    if (!id) return null;
+
+    let init = null;
+    if (this._currTokenIs(TOKEN.ASSIGN)) {
+        this._advance(); // Consume '='
+        init = this._parseExpression(PRECEDENCE.ASSIGNMENT);
+        if (!init) {
+            // An expression was expected but not found, this is a syntax error.
+            this._error("Expected an expression after '=' in variable declaration.");
+            return null;
+        }
+    } else if (kind === 'const') { // This check now works correctly
+        // 'const' requires an initializer.
+        this._error("'const' declarations must be initialized.");
+        return null;
+    }
+
+    return this._finishNode({ type: 'VariableDeclarator', id, init }, s);
+};
 
 	proto._parseFunction = function(context, isAsync = false) {
 		const s = this._startNode();
@@ -198,39 +237,106 @@
 		return this._finishNode({ type: 'MethodDefinition', key, value, kind: key.name === 'constructor' ? 'constructor' : 'method', 'static': isStatic }, s);
 	};
 
+	// --- THIS IS THE NEW, CORRECT FUNCTION ---
 	proto._parseImportDeclaration = function() {
-		const s = this._startNode();
-		this._expect(TOKEN.IMPORT);
-		const specifiers = [];
-		if (this._currTokenIs(TOKEN.STRING)) {
-			const source = this._parseLiteral();
-			this._consumeSemicolon();
-			return this._finishNode({ type: 'ImportDeclaration', specifiers, source }, s);
-		}
-		// Incomplete but safe import parsing
-		if(this._currTokenIs(TOKEN.LBRACE)){
-			this._advance();
-			while(!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) this._advance(); // Skip content
-			this._expect(TOKEN.RBRACE);
-		}
-		this._expect(TOKEN.FROM);
-		const source = this._parseLiteral();
-		if(!source) return null;
-		this._consumeSemicolon();
-		return this._finishNode({ type: 'ImportDeclaration', specifiers, source }, s);
+	    const s = this._startNode();
+	    this._expect(TOKEN.IMPORT);
+	    const specifiers = [];
+	    if (this._currTokenIs(TOKEN.STRING)) {
+	        const source = this._parseLiteral();
+	        this._consumeSemicolon();
+	        return this._finishNode({ type: 'ImportDeclaration', specifiers, source }, s);
+	    }
+	    if (this._currTokenIs(TOKEN.IDENT)) {
+	        const specStart = this._startNode();
+	        const local = this._parseIdentifier();
+	        specifiers.push(this._finishNode({ type: 'ImportDefaultSpecifier', local }, specStart));
+	        if (this._currTokenIs(TOKEN.COMMA)) {
+	            this._advance();
+	        }
+	    }
+	    if (this._currTokenIs(TOKEN.LBRACE)) {
+	        this._expect(TOKEN.LBRACE);
+	        while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
+	            const specStart = this._startNode();
+	            const imported = this._parseIdentifier();
+	            let local = imported;
+	            if (this._currTokenIs(TOKEN.AS)) {
+	                this._advance();
+	                local = this._parseIdentifier();
+	            }
+	            specifiers.push(this._finishNode({ type: 'ImportSpecifier', imported, local }, specStart));
+	            if (!this._currTokenIs(TOKEN.COMMA)) break;
+                this._advance();
+	        }
+	        this._expect(TOKEN.RBRACE);
+	    }
+	    this._expect(TOKEN.FROM);
+	    const source = this._parseLiteral();
+	    this._consumeSemicolon();
+	    return this._finishNode({ type: 'ImportDeclaration', specifiers, source }, s);
 	};
 
 	proto._parseExportDeclaration = function() {
-		const s = this._startNode();
-		this._expect(TOKEN.EXPORT);
-		let declaration;
-		if (this._currTokenIs(TOKEN.DEFAULT)) {
-			this._advance();
-			declaration = this._parseExpression(PRECEDENCE.ASSIGNMENT);
-			this._consumeSemicolon();
-			return this._finishNode({ type: 'ExportDefaultDeclaration', declaration }, s);
-		}
-		declaration = this._parseDeclaration();
-		return this._finishNode({ type: 'ExportNamedDeclaration', declaration, specifiers: [], source: null }, s);
-	};
+    const s = this._startNode();
+    this._expect(TOKEN.EXPORT);
+
+    // This block handles `export default ...`
+    if (this._currTokenIs(TOKEN.DEFAULT)) {
+        this._advance(); // Consume 'default'
+
+        let declaration;
+        // This switch is the key. It decides what to parse next.
+        switch (this.currToken.type) {
+            case TOKEN.FUNCTION:
+                declaration = this._parseFunction('expression');
+                break;
+            case TOKEN.CLASS:
+                declaration = this._parseClassExpression();
+                break;
+            case TOKEN.ASYNC:
+                 if (this._peekTokenIs(TOKEN.FUNCTION)) {
+                    this._advance();
+                    declaration = this._parseFunction('expression', true);
+                 } else {
+                    // This is the fallback for an async expression
+                    declaration = this._parseExpression(PRECEDENCE.ASSIGNMENT);
+                 }
+                break;
+            // CRITICAL FIX: This default case handles `export default 3`, `export default a + b`, etc.
+            default:
+                declaration = this._parseExpression(PRECEDENCE.ASSIGNMENT);
+                break;
+        }
+        
+        if (!declaration) {
+            this._error("Expected an expression or declaration after 'export default'");
+            return null;
+        }
+
+        // Expressions might be followed by a semicolon.
+        this._consumeSemicolon();
+        return this._finishNode({ type: 'ExportDefaultDeclaration', declaration }, s);
+    }
+
+    // This block handles named exports like `export const x = 5;`
+    let declaration;
+    switch (this.currToken.type) {
+        case TOKEN.LET: case TOKEN.CONST: case TOKEN.VAR:
+            declaration = this._parseVariableDeclaration();
+            break;
+        case TOKEN.FUNCTION:
+            declaration = this._parseFunction('declaration');
+            break;
+        case TOKEN.CLASS:
+            declaration = this._parseClassDeclaration();
+            break;
+        default:
+            this._error("Unexpected token after export. Expected a named declaration.");
+            return null;
+    }
+    
+    return this._finishNode({ type: 'ExportNamedDeclaration', declaration, specifiers: [], source: null }, s);
+};
+
 })(MerkabahParser.prototype);
