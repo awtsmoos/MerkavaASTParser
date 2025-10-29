@@ -1,5 +1,7 @@
+// B"H
 // In parser-core.js
-// B"H --- The Merkabah Ha'Gadol: The Indestructible Emanation (Core) [FINAL UNBREAKABLE VERSION] ---
+var time=0
+var max=2000
 class MerkabahParser {
 	constructor(s) {
 		this.l = new Lexer(s);
@@ -12,25 +14,34 @@ class MerkabahParser {
 
 		this.prefixParseFns = {};
 		this.infixParseFns = {};
+		
+		this.recursionDepth = 0;
+	        this.maxRecursionDepth = 1500; 
 
-		// This specific initialization primes the token stream correctly.
-		// It guarantees that when the parse() loop starts, the parser's state is valid.
 		this.currToken = this.l.nextToken();
 		this.peekToken = this.l.nextToken();
 	}
 
 	_advance() {
+	if(time++>max) throw "stoped";
+		
 		this.prevToken = this.currToken;
 		this.currToken = this.peekToken;
 		this.peekToken = this.l.nextToken();
 	}
 
-	_currTokenIs(t) { return this.currToken.type === t; }
-	_startNode() { return { loc: { start: { line: this.currToken.line, column: this.currToken.column } } }; }
+	_currTokenIs(t) { 
+	if(time++>max) throw "stoped curr";
+	return this.currToken.type === t; }
+	_startNode() { 
+	if(time++>max) throw "started";
+	return { loc: { start: { line: this.currToken.line, column: this.currToken.column } } }; }
 
 	_finishNode(node, startNodeInfo) {
+	    if(time++>max) throw "stoped";
+		
 	    const combinedNode = { ...startNodeInfo, ...node };
-	    const endToken = this.prevToken; // A node ends at the last token we consumed.
+	    const endToken = this.prevToken;
 	    if (endToken) {
 	        combinedNode.loc.end = { line: endToken.line, column: endToken.column + (endToken.literal?.length || 0) };
 	    }
@@ -42,7 +53,7 @@ class MerkabahParser {
 		this.panicMode = true;
         const msg = `[Shevirah] ${m} on line ${this.currToken.line}:${this.currToken.column}. Got token ${this.currToken.type} ("${this.currToken.literal}")`;
 		this.errors.push(msg);
-        throw new Error(msg); // This throw is critical for recovery.
+        throw new Error(msg);
 	}
 
 	_expect(t) {
@@ -50,48 +61,80 @@ class MerkabahParser {
 		this._error(`Expected next token to be ${t}`);
 	}
 
-	// This is the emergency parachute. It's called after an error to find a safe place to resume parsing.
 	_synchronize() {
+	
+	throw new Error(`PARSER PANIC: Entering error recovery mode. The initial error was thrown while processing the token: Type=${this.currToken.type}, Literal="${this.currToken.literal}"`);
+	
+	
+	if(time++>max) throw "stoped";
+		
 		this.panicMode = false;
-		while (!this._currTokenIs(TOKEN.EOF)) {
+		while (time++ <max&&
+		!this._currTokenIs(TOKEN.EOF)
+		) {
 			if (this.prevToken && this.prevToken.type === TOKEN.SEMICOLON) return;
 			switch (this.currToken.type) {
 				case TOKEN.CLASS: case TOKEN.FUNCTION: case TOKEN.VAR: case TOKEN.CONST: case TOKEN.LET:
 				case TOKEN.IF: case TOKEN.FOR: case TOKEN.WHILE: case TOKEN.RETURN: case TOKEN.IMPORT:
 				case TOKEN.EXPORT: case TOKEN.SWITCH:
-					return; // We found what looks like the beginning of a new statement.
+					return;
 			}
 			this._advance();
 		}
 	}
 
-    // This handles both real semicolons and the "implicit" semicolons at the end of lines or the file.
     _consumeSemicolon() {
+    if(time++>max) throw "stoped";
         if (this._currTokenIs(TOKEN.SEMICOLON)) { this._advance(); return; }
         if (this._currTokenIs(TOKEN.RBRACE) || this._currTokenIs(TOKEN.EOF) || this.currToken.hasLineTerminatorBefore) { return; }
     }
 
 	_getPrecedence(t) { return PRECEDENCES[t.type] || PRECEDENCE.LOWEST; }
 
-	// This is the robust main loop that drives the entire process.
-	parse() {
-	    const program = { type: 'Program', body: [], sourceType: 'module', loc: { start: { line: 1, column: 0 } } };
-	    while (!this._currTokenIs(TOKEN.EOF)) {
-	        try {
-	            const stmt = this._parseDeclaration();
-	            if (stmt) {
-	                program.body.push(stmt);
-	            } else if (!this.panicMode) {
-	                // Failsafe: if a parser returns null without throwing, we force an error to trigger recovery.
-	                this._error(`Unexpected token: "${this.currToken.literal}" cannot start a statement.`);
-	            }
-	        } catch (e) {
-				// This catch block makes the parser uncrashable. It will ALWAYS recover.
-	            this._synchronize();
-	        }
-	    }
-	    const endToken = this.prevToken || this.currToken;
-	    program.loc.end = { line: endToken.line, column: endToken.column + (endToken.literal?.length || 0) };
-	    return program;
-	}
+	// THIS IS THE MODIFIED METHOD
+	// B"H
+// In parser-core.js, inside the MerkabahParser class
+
+// In parser-core.js, inside the MerkabahParser class
+
+// In parser-core.js, inside the MerkabahParser class
+
+parse() {
+    const program = { type: 'Program', body: [], sourceType: 'module', loc: { start: { line: 1, column: 0 } } };
+
+    while (!this._currTokenIs(TOKEN.EOF)) {
+        const positionBeforeParse = this.l.position;
+
+        try {
+            const stmt = this._parseDeclaration();
+            if (stmt) {
+                program.body.push(stmt);
+            } else if (!this.panicMode) {
+                // This branch is taken if a parsing function returns null,
+                // indicating it couldn't parse a statement.
+                this._error(`Unexpected token: "${this.currToken.literal}" cannot start a statement.`);
+                // We must advance to prevent a loop on the bad token.
+                this._advance(); 
+            }
+        } catch (e) {
+            // --- THIS IS THE CRITICAL DIAGNOSTIC ---
+            // Before we do anything else, log the ORIGINAL error.
+            // This will give us the true stack trace and point to the real bug.
+            console.error("CAUGHT INITIAL ERROR:", e); 
+            
+            // Now, we can try to recover.
+            this._synchronize();
+        }
+
+        if (this.l.position === positionBeforeParse && !this._currTokenIs(TOKEN.EOF)) {
+            throw new Error(
+                `PARSER HALTED: Infinite loop detected. Main loop failed to advance.`
+            );
+        }
+    }
+
+    const endToken = this.prevToken || this.currToken;
+    program.loc.end = { line: endToken.line, column: endToken.column + (endToken.literal?.length || 0) };
+    return program;
+}
 }

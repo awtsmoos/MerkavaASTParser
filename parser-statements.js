@@ -17,26 +17,27 @@
 
 	// In parser-statements.js
 
-	proto._parseBlockStatement = function() {
-		const s = this._startNode();
-		this._expect(TOKEN.LBRACE);
-		const body = [];
-		while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
-			// This now correctly relies on the main error handling (try/catch in the parse() loop)
-			// to deal with bad statements inside a block.
-			const stmt = this._parseDeclaration();
-			if (stmt) {
-				body.push(stmt);
-			} else {
-                // If a statement could not be parsed, we MUST break the loop.
-                // The main `parse` function's recovery will handle advancing the token.
-                // Blindly advancing here was the original bug.
-                break;
-            }
-		}
-		this._expect(TOKEN.RBRACE);
-		return this._finishNode({ type: 'BlockStatement', body }, s);
-	};
+	// B"H
+// In parser-statements.js
+proto._parseBlockStatement = function() {
+    const s = this._startNode();
+    this._expect(TOKEN.LBRACE);
+    const body = [];
+    let guard = 0; // Add circuit breaker
+    while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
+        if (guard++ > 5000) { // Check circuit breaker
+            throw new Error("Infinite loop detected in _parseBlockStatement()");
+        }
+        const stmt = this._parseDeclaration();
+        if (stmt) {
+            body.push(stmt);
+        } else {
+            break;
+        }
+    }
+    this._expect(TOKEN.RBRACE);
+    return this._finishNode({ type: 'BlockStatement', body }, s);
+};
 
 	// In parser-statements.js
 

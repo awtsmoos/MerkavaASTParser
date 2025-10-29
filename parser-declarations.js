@@ -1,9 +1,18 @@
 // B"H --- Parsing Declarations [DEFINITIVE & COMPLETE] ---
 (function(proto) {
+var times=0
+var max=300
 	proto.registerDeclarationParsers = function() { /* No registration needed */ };
 
 	proto._parseDeclaration = function() {
-		if (this.panicMode) return null;
+		if(times++>max){
+		throw "maxed"
+		
+		}
+		if (this.panicMode) {
+		throw "error"
+		return null;
+		}
 		switch (this.currToken.type) {
 			case TOKEN.EXPORT: return this._parseExportDeclaration();
 			case TOKEN.IMPORT: return this._parseImportDeclaration();
@@ -26,6 +35,10 @@
     
 
 	proto._parseBindingPattern = function() {
+		if(times++>max) {
+		throw "wow what are u"
+		}
+		
 		if (this._currTokenIs(TOKEN.LBRACE)) return this._parseObjectPattern();
 		if (this._currTokenIs(TOKEN.LBRACKET)) return this._parseArrayPattern();
 		if (!this._currTokenIs(TOKEN.IDENT)) {
@@ -97,38 +110,65 @@
 	};
 	
 	// In parser-declarations.js
+// B"H
+// In parser-declarations.js
 proto._parseVariableDeclaration = function() {
+    if(times++>max) {
+		throw "wow what are u"
+		}
     const s = this._startNode();
     const kind = this.currToken.literal;
     this._advance(); // Consume 'var', 'let', or 'const'
 
     const declarations = [];
+    let guard = 0; // The circuit breaker.
 
-    // THIS IS THE FIX (Part 1): A precise and safe loop.
+    // This loop handles `var f=3, g=4, ...`
     do {
+        if (guard++ > 5000) { // Check the circuit breaker.
+            console.error("PARSER HALTED: Infinite loop detected in _parseVariableDeclaration. Stuck on token:", this.currToken);
+            throw new Error("Infinite loop in _parseVariableDeclaration");
+        }
+
+        // If this isn't the first variable in the list, we must consume a comma.
         if (declarations.length > 0) {
-            this._advance(); // Only consumes a comma if we are between declarators.
+            this._expect(TOKEN.COMMA);
         }
 
         const decl = this._parseVariableDeclarator(kind);
-        if (!decl) {
-             return null; // Error recovery: stops if a declarator is malformed.
+        if (decl) {
+            declarations.push(decl);
+        } else {
+        console.trace("what happened")
+        throw "broke "
+            // If a declarator is malformed, stop trying to parse more.
+            break;
         }
-        declarations.push(decl);
-
-        // The loop condition is extremely specific: it ONLY continues for a comma.
-        // For your input "var g = t", the token after 't' is EOF. 'EOF' is not a comma,
-        // so the loop correctly terminates immediately after the first pass.
+    // The loop ONLY continues if there is a comma after the declarator.
     } while (this._currTokenIs(TOKEN.COMMA));
+    
+    // Remember the token before we try to consume a semicolon.
+    const tokenBeforeASI = this.currToken;
 
-    // THIS IS THE FIX (Part 2): Handling the end of the statement.
-    // This call is absolutely critical for correctness.
+
     this._consumeSemicolon();
-
+    
+    if (this.currToken === tokenBeforeASI && !this._currTokenIs(TOKEN.EOF) && !this._currTokenIs(TOKEN.RBRACE)) {
+        // This error will fire instead of the browser freezing.
+        throw new Error(
+            `PARSER HALTED: Infinite loop detected. A statement was parsed, but the parser did not advance. ` +
+            `This is typically caused by a missing semicolon before a token that cannot start a new statement. ` +
+            `Stuck at: line ${this.currToken.line}, col ${this.currToken.column}, token "${this.currToken.literal}" (${this.currToken.type})`
+        );
+    }
     return this._finishNode({ type: 'VariableDeclaration', declarations, kind }, s);
 };
 // In parser-declarations.js
 proto._parseVariableDeclarator = function(kind) {
+   if(times++>max){
+		throw "maxed"
+		
+		}
     const s = this._startNode();
     const id = this._parseBindingPattern(); // Parses the variable name/pattern.
     if (!id) return null; // Important for error handling.
