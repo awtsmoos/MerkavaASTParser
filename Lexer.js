@@ -1,8 +1,6 @@
 // B"H 
-//Lexer.js
-var times=0
-var max=100
-//--- The Artificer of Golems (Final, Flawless & Unbreakable) ---
+// Lexer.js (Corrected and Final)
+
 class Lexer {
 	constructor(s) {
 		this.source = s;
@@ -12,20 +10,31 @@ class Lexer {
 		this.line = 1;
 		this.column = 0;
 		this.hasLineTerminatorBefore = false;
-		this.templateStack = []; // Used to handle nested template literals
+		this.templateStack = [];
+
+		// --- THE DEFINITIVE FIX ---
+		// 1. Initialize the counter as an instance property. It is now correctly
+		//    reset every time `new Lexer()` is called.
+		this.op_count = 0;
+		// 2. Set a safe, high limit to catch true infinite loops.
+		this.max_ops = 25000; 
+
 		this._advance();
-		this.times=0
-		this.max=1000
-		this.max_times =1000
+	}
+
+	// A single, reliable guard function that throws an error to halt execution.
+	_guard() {
+		if (this.op_count++ > this.max_ops) {
+			throw new Error(
+				`LEXER HALTED: Maximum operation count (${this.max_ops}) exceeded. ` +
+				`This is a guaranteed infinite loop, likely caused by a bug in the lexer's state. ` +
+				`Stuck near character: '${this.ch}' at Line: ${this.line}, Col: ${this.column}`
+			);
+		}
 	}
 
 	_advance() {
-	if (this.times++ > this.max_times) {
-       console. trace("advanced issue")
-        throw new Error(`LEXER HALTED: Max operations exceeded in advance. Infinite loop detected.`);
-    
-}
-		
+		this._guard();
 		if (this.readPosition >= this.source.length) {
 			this.ch = null;
 		} else {
@@ -37,46 +46,33 @@ class Lexer {
 	}
 
 	_peek() {
-	if (this.times++ > this.max_times) {
-        throw new Error(`LEXER HALTED: Max operations exceeded in peek. Infinite loop detected.`);
-    }
-		
+		this._guard();
 		if (this.readPosition >= this.source.length) return null;
 		return this.source[this.readPosition];
 	}
 
-	// In Lexer.js -- REPLACE THESE TWO METHODS
-
 	_makeToken(type, literal, startColumn, startLine) {
-	if (this.times++ > this.max_times) {
-	console.trace("next token call failed")
-        throw new Error(`LEXER HALTED: Max operations exceeded in makeToken(). Infinite loop detected.`);
-    }
-		
+		this._guard();
 		const col = startColumn || this.column - (literal?.length || (this.ch === null ? 0 : 1));
         const line = startLine || this.line;
 		return { type, literal, line: line, column: col, hasLineTerminatorBefore: this.hasLineTerminatorBefore };
 	}
 
 	nextToken() {
-	if (this.times++ > this.max_times) {
-        throw new Error(`LEXER HALTED: Max operations exceeded in nextToken(). Infinite loop detected.`);
-    }
-		
-		if (this.templateStack.length > 0 && this.ch === '}') {
-			return this._readTemplateMiddleOrTail();
-		}
+		this._guard();
 		
 		this._skipWhitespace();
 
-        // --- THIS IS THE FIX ---
-        // We capture the starting line and column *before* processing the token.
         const startLine = this.line;
         const startColumn = this.column;
 
-		if (this.ch === null) 
-		return  this._makeToken(TOKEN.EOF, '', startColumn, startLine);
-        // --- END OF FIX ---
+		if (this.ch === null) {
+			return this._makeToken(TOKEN.EOF, '', startColumn, startLine);
+		}
+
+		if (this.templateStack.length > 0 && this.ch === '}') {
+			return this._readTemplateMiddleOrTail();
+		}
 
 		const c = this.ch;
 		let tok;
@@ -110,11 +106,10 @@ class Lexer {
 				if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.SLASH_ASSIGN, '/=', startColumn); }
 				else { tok = this._makeToken(TOKEN.SLASH, '/', startColumn); }
 				break;
-				
-			 case '%':
-	                if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MODULO_ASSIGN, '%=', startColumn); }
-	                else { tok = this._makeToken(TOKEN.MODULO, '%', startColumn); }
-	                break;
+			case '%':
+	            if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MODULO_ASSIGN, '%=', startColumn); }
+	            else { tok = this._makeToken(TOKEN.MODULO, '%', startColumn); }
+	            break;
 			case '<': tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.LTE, '<=', startColumn)) : this._makeToken(TOKEN.LT, '<', startColumn); break;
 			case '>': tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.GTE, '>=', startColumn)) : this._makeToken(TOKEN.GT, '>', startColumn); break;
 			case '&': tok = this._peek() === '&' ? (this._advance(), this._makeToken(TOKEN.AND, '&&', startColumn)) : this._makeToken(TOKEN.ILLEGAL, '&', startColumn); break;
@@ -138,7 +133,7 @@ class Lexer {
 			case ',': tok = this._makeToken(TOKEN.COMMA, ',', startColumn); break;
 			case ';': tok = this._makeToken(TOKEN.SEMICOLON, ';', startColumn); break;
 			case ':': tok = this._makeToken(TOKEN.COLON, ':', startColumn); break;
-			case '"': case "'": return this._readString(c); // _readString will call makeToken with correct position
+			case '"': case "'": return this._readString(c);
 			default:
 				if (this._isLetter(c)) {
 					const ident = this._readIdentifier();
@@ -154,67 +149,45 @@ class Lexer {
 		return tok;
 	}
 
-	// B"H
-// In Lexer.js
-// In Lexer.js
-
-_skipWhitespace() {
-    // This function is the ONLY place a freeze can happen.
-    // We will add a foolproof guard here.
-
-    while (this.ch !== null) {
-        // FOOLPROOF GUARD: Remember our exact position *before* an iteration.
-        const positionBeforeLoopIteration = this.position;
-
-        if (' \t'.includes(this.ch)) {
-            this._advance();
-        } else if ('\n\r'.includes(this.ch)) {
-            this.hasLineTerminatorBefore = true;
-            if (this.ch === '\r' && this._peek() === '\n') this._advance();
-            this._advance();
-            this.line++;
-            this.column = 0;
-        } else if (this.ch === '/' && this._peek() === '/') {
-            while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
-        } else if (this.ch === '/' && this._peek() === '*') {
-            this._advance(); this._advance();
-            while (this.ch !== null && (this.ch !== '*' || this._peek() !== '/')) {
-                if ('\n\r'.includes(this.ch)) {
-                    this.hasLineTerminatorBefore = true;
-                    if (this.ch === '\r' && this._peek() === '\n') this._advance();
-                    this.line++;
-                    this.column = 0;
-                }
-                this._advance();
-            }
-            if (this.ch !== null) { this._advance(); this._advance(); }
-        } else {
-            // If it's not whitespace or a comment, we are done.
-            break;
-        }
-
-        // THROW THE ERROR HERE:
-        // After one spin of the loop, if our position has not changed,
-        // we are in a guaranteed infinite loop. Throw an error to kill it.
-        if (this.position === positionBeforeLoopIteration) {
-            throw new Error(
-                `LEXER HALTED: Infinite loop detected in _skipWhitespace. ` +
-                `The lexer is stuck on a character it cannot process. ` +
-                `Character: '${this.ch}' (char code: ${this.ch.charCodeAt(0)}) at Line: ${this.line}, Col: ${this.column}`
-            );
-        }
-    }
-}
-
-	
+	_skipWhitespace() {
+		while (this.ch !== null) {
+			this._guard(); // Guard each iteration of the outer loop.
+			if (' \t'.includes(this.ch)) {
+				this._advance();
+			} else if ('\n\r'.includes(this.ch)) {
+				this.hasLineTerminatorBefore = true;
+				if (this.ch === '\r' && this._peek() === '\n') this._advance();
+				this._advance();
+				this.line++;
+				this.column = 0;
+			} else if (this.ch === '/' && this._peek() === '/') {
+				while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
+			} else if (this.ch === '/' && this._peek() === '*') {
+				this._advance(); this._advance();
+				while (this.ch !== null && (this.ch !== '*' || this._peek() !== '/')) {
+					if ('\n\r'.includes(this.ch)) {
+						this.hasLineTerminatorBefore = true;
+						if (this.ch === '\r' && this._peek() === '\n') this._advance();
+						this.line++;
+						this.column = 0;
+					}
+					this._advance();
+				}
+				if (this.ch !== null) { this._advance(); this._advance(); }
+			} else {
+				break;
+			}
+		}
+	}
 	
 	_readTemplateHead() {
+		this._guard();
 		this._advance();
 		return this._readTemplatePart('TEMPLATE_HEAD');
 	}
 
 	_readTemplateMiddleOrTail() {
-		// Assumes current char is '}'
+		this._guard();
 		this._advance(); // Consume '}'
 		const type = this.templateStack.length > 0 ? 'TEMPLATE_MIDDLE' : 'ILLEGAL';
 		return this._readTemplatePart(type);
@@ -223,6 +196,7 @@ _skipWhitespace() {
 	_readTemplatePart(initialType) {
 		const p = this.position;
 		while (this.ch !== null && this.ch !== '`') {
+			this._guard(); // Guard the loop
 			if (this.ch === '$' && this._peek() === '{') {
 				const literal = this.source.slice(p, this.position);
 				this._advance(); // Consume '$'
@@ -245,13 +219,17 @@ _skipWhitespace() {
 
 	_readIdentifier() {
 		const p = this.position;
-		while (this._isIdentifierChar(this.ch)) this._advance();
+		while (this.ch !== null && this._isIdentifierChar(this.ch)) {
+			this._advance();
+		}
 		return this.source.slice(p, this.position);
 	}
 
 	_readNumber() {
 		const p = this.position;
-		while (this._isDigit(this.ch)) this._advance();
+		while (this.ch !== null && this._isDigit(this.ch)) {
+			this._advance();
+		}
 		return this.source.slice(p, this.position);
 	}
 
@@ -259,6 +237,7 @@ _skipWhitespace() {
 		this._advance(); // consume opening quote
 		const p = this.position;
 		while (this.ch !== quote && this.ch !== null) {
+			this._guard(); // Guard the loop
 			if (this.ch === '\\') this._advance(); // skip escaped char
 			this._advance();
 		}
