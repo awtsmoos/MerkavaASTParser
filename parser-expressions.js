@@ -1168,26 +1168,48 @@ proto._convertExpressionToPattern = function(node) {
 
 // B"H 
 
+
 proto._parseImportExpression = function() {
     const s = this._startNode();
+    
+    // Manually create the 'import' identifier node for the AST, as it doesn't come
+    // from a standard IDENT token but from the IMPORT keyword.
+    const metaIdentifier = { type: 'Identifier', name: 'import', loc: s.loc };
+    
     this._advance(); // Consume the 'import' keyword.
 
-    // A dynamic import must be a function call.
+    // --- THIS IS THE TIKKUN (THE FIX) ---
+    // After 'import', we check for a '.' to see if it is the 'import.meta' property.
+    if (this._currTokenIs(TOKEN.DOT)) {
+        this._advance(); // Consume '.'
+
+        const property = this._parseIdentifier();
+        if (property.name !== 'meta') {
+            this._error("Expected 'meta' after 'import.'");
+            return null;
+        }
+
+        // According to the ESTree spec, this is a MetaProperty node.
+        return this._finishNode({ type: 'MetaProperty', meta: metaIdentifier, property: property }, s);
+    }
+
+    // If it was not 'import.meta', it must be a dynamic import: 'import()'.
     if (!this._currTokenIs(TOKEN.LPAREN)) {
         this._error("Expected '(' after import for a dynamic import expression.");
         return null;
     }
     this._advance(); // Consume '('
 
-    // The argument to import() is the module source, which is itself an expression.
+    // Parse the module source as an expression.
     const source = this._parseExpression(PRECEDENCE.LOWEST);
 
     this._expect(TOKEN.RPAREN); // Consume ')'
 
-    // According to the ESTree spec, the node type is 'ImportExpression'.
+    // According to the ESTree spec, this is an ImportExpression node.
     return this._finishNode({ type: 'ImportExpression', source: source }, s);
 };
 
+// --- 
 
 
 

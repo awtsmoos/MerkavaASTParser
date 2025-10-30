@@ -32,6 +32,8 @@ proto._parseDeclaration = function() {
         case TOKEN.BREAK: return this._parseBreakStatement();
         case TOKEN.TRY: return this._parseTryStatement();
         
+        case TOKEN.CONTINUE: return this._parseContinueStatement();
+        
         // --- THIS IS THE TIKKUN (Part 1) ---
         // Add a case to handle 'do-while' loops.
         case TOKEN.DO: return this._parseDoWhileStatement();

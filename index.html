@@ -111,6 +111,117 @@ export default class UltimateConfigurator {
     
     </script>
     
+    <script type="awtsmoos" id="makor3">
+    
+    // B"H --- The Ein Sof Test: The Unknowable Limit ---
+// A script to test the parser's ability to comprehend the deepest layers of metaprogramming and asynchronous grammar.
+
+export default (class EinSof_Construct {
+    // 1. Stress Point: Static block with top-level await and the import.meta meta-property.
+    static {
+        this.moduleInfo = { url: import.meta.url, timestamp: Date.now() };
+    }
+
+    // 2. Stress Point: A private static field that is an immediately-invoked ASYNC class expression.
+    static #PrimordialVessel = (async () => {
+        // The base object can't be known until a dynamic import is resolved at runtime.
+        const Base = (await import('./base.js')).default || class {};
+
+        // This class is defined and instantiated entirely within the static initializer.
+        return class extends Base {
+            #creation = BigInt(Date.now());
+            [Symbol.for('kabbalistic.uid')] = true;
+
+            constructor(...args) {
+                // 3. Stress Point: super() call with a complex spread argument.
+                super(...(args.length > 0 ? args : [null]));
+            }
+
+            // An async generator to represent the flow of emanations.
+            async * #emanate(limit) {
+                for(let i = 0; i < limit; i++) {
+                    await new Promise(r => setTimeout(r, 1));
+                    yield { level: i, from: this.#creation };
+                }
+            }
+        }
+    })();
+
+    // 4. Stress Point: A Proxy handler with deep, nested, async logic.
+    static #handler = {
+        get: (target, prop, receiver) => {
+            console.log(`Intercepted access to '${prop.toString()}'`);
+
+            // Use Reflect to perform the default operation.
+            if (Reflect.has(target, prop)) {
+                return Reflect.get(target, prop, receiver);
+            }
+
+            // 5. Stress Point: Return a default value computed by a nested, IIAFE.
+            return (async (p) => {
+                await new Promise(r => setTimeout(r, 5));
+                return `[Ein Sof] Attribute '${p.toString()}' is beyond comprehension.`;
+            })(prop);
+        },
+        // Add other traps for a truly robust test (set, apply, etc.)
+    };
+    
+    #instance;
+
+    constructor() {
+        // 6. Stress Point: The final instance is a Proxy wrapping a dynamically resolved class.
+        // The parser must handle `new (await ...)` as the callee of `new Proxy`.
+        this.#instance = (async () => {
+            const VesselClass = await EinSof_Construct.#PrimordialVessel;
+            return new Proxy(new VesselClass(), EinSof_Construct.#handler);
+        })();
+    }
+
+    // 7. Stress Point: An async generator method that uses yield within a catch block
+    // and a labeled continue within a finally block.
+    async * breachTheVoid({ attempts = 3, onFail = () => 'recoil' } = {}) {
+        let count = 0;
+        OuterRim:
+        while (count < attempts) {
+            try {
+                const proxy = await this.#instance;
+                // Access a property that doesn't exist to trigger the proxy's 'get' trap.
+                const result = await proxy.unfathomable_attribute;
+                return result; // Exit if successful.
+            } catch (err) {
+                // Yielding from a catch block is a complex control flow.
+                yield { error: err.message, strategy: onFail() };
+                count++;
+            } finally {
+                // Continuing an outer labeled loop from a finally block.
+                if (count < attempts) continue OuterRim;
+            }
+        }
+        return "The Void remains sealed.";
+    }
+
+    // 8. Stress Point: A getter for a well-known Symbol as a computed property.
+    get [Symbol.toStringTag]() {
+        return 'EinSof_Construct';
+    }
+});
+
+// Immediately-invoked async function to run the final test.
+(async () => {
+    try {
+        const construct = new (await (await import(import.meta.url)).default)();
+        
+        for await (const attempt of construct.breachTheVoid({ attempts: 2 })) {
+            console.log('A whisper from the Void:', attempt);
+        }
+        
+    } catch(e) {
+        console.error("The simulation of Ein Sof has collapsed:", e);
+    }
+})();
+    
+    </script>
+    
     <script type="Awtsmoos" id="makor2">
     
     // B"H --- The Keter Test: The Crown of Emanations ---
@@ -221,7 +332,7 @@ export default class TranscendentalReducer extends (class ChaosMatrix extends Ar
     
    <!-- In index.html -->
 <script>
-var makor=document. getElementById("makor2")
+var makor=document. getElementById("makor3")
     document.addEventListener('DOMContentLoaded', () => {
         const jsInput = document.getElementById('js-input');
         const astOutput = document.getElementById('ast-output');

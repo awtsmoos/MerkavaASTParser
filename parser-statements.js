@@ -324,7 +324,39 @@ proto._parseDoWhileStatement = function() {
     return this._finishNode({ type: 'DoWhileStatement', body, test }, s);
 };
 
-// --- End of new methods ---
+// 
+
+// B"H
+
+proto._parseContinueStatement = function() {
+    const s = this._startNode();
+    this._advance(); // Consume 'continue'
+
+    let label = null;
+    // Check if an identifier (the label) follows on the same line.
+    if (!this.currToken.hasLineTerminatorBefore && this._currTokenIs(TOKEN.IDENT)) {
+        label = this._parseIdentifier();
+    }
+
+    this._consumeSemicolon();
+    return this._finishNode({ type: 'ContinueStatement', label: label }, s);
+};
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
 
 })(MerkabahParser.prototype);
