@@ -72,7 +72,8 @@ proto._parseDeclaration = function() {
 	*  This function is responsible for parsing a single property inside
 	*  an object pattern, like `a`, `a: b`, or `a = 1` in `{ a, a: b, a = 1}`.
 	***********************************************************************/
-	// REPLACE your old _parseProperty function with this final, upgraded version.
+// B"H 
+
 proto._parseProperty = function() {
     const s = this._startNode();
     if (!this._currTokenIs(TOKEN.IDENT)) {
@@ -83,25 +84,30 @@ proto._parseProperty = function() {
     let value = key;
     let shorthand = true;
 
-    // Check for aliasing: { oldName: newName } or { oldName: newName = defaultValue }
+    // Check for aliasing: { oldName: newName }
     if (this._currTokenIs(TOKEN.COLON)) {
         shorthand = false;
         this._advance(); // consume ':'
         value = this._parseBindingPattern(); // The value is another pattern
     }
 
-    // THIS IS THE UPGRADE: Now, check for a default value for this property
+    // --- THIS IS THE TIKKUN (THE FIX) ---
+    // Now, we check for a default value for this property.
     if (this._currTokenIs(TOKEN.ASSIGN)) {
         // If there's a default value, it must be an AssignmentPattern.
-        // The 'value' we've parsed so far is the 'left' side of the assignment.
+        // The 'value' we've parsed so far becomes the 'left' side of the assignment.
         const assignStart = this._startNode();
         assignStart.loc.start = value.loc.start;
         this._advance(); // consume '='
-        const right = this._parseExpression(PRECEDENCE.ASSIGNMENT); // Parse the default value
+        
+        // Parse the expression for the default value (e.g., the async arrow function)
+        const right = this._parseExpression(PRECEDENCE.ASSIGNMENT); 
         
         // Wrap the property's value in an AssignmentPattern node.
         value = this._finishNode({ type: 'AssignmentPattern', left: value, right: right }, assignStart);
-        shorthand = false; // A property with a default value can't be shorthand.
+        
+        // A property with a default value can't be shorthand.
+        shorthand = false; 
     }
 
     return this._finishNode({ 
@@ -151,79 +157,67 @@ proto._parseProperty = function() {
 	
 	// In parser-declarations.js
 // B"H
-// In parser-declarations.js
-proto._parseVariableDeclaration = function() {
+// 
+
+proto._parseVariableDeclaration = function(inForHead = false) { // Add inForHead parameter
     if(times++>max) {
 		throw "wow what are u"
 		}
     const s = this._startNode();
     const kind = this.currToken.literal;
-    this._advance(); // Consume 'var', 'let', or 'const'
+    this._advance();
 
     const declarations = [];
-    let guard = 0; // The circuit breaker.
+    let guard = 0; 
 
-    // This loop handles `var f=3, g=4, ...`
     do {
-        if (guard++ > 5000) { // Check the circuit breaker.
+        if (guard++ > 5000) { 
             console.error("PARSER HALTED: Infinite loop detected in _parseVariableDeclaration. Stuck on token:", this.currToken);
             throw new Error("Infinite loop in _parseVariableDeclaration");
         }
-
-        // If this isn't the first variable in the list, we must consume a comma.
         if (declarations.length > 0) {
             this._expect(TOKEN.COMMA);
         }
 
-        const decl = this._parseVariableDeclarator(kind);
+        // --- Pass the context flag down to the declarator ---
+        const decl = this._parseVariableDeclarator(kind, inForHead);
         if (decl) {
             declarations.push(decl);
         } else {
-        console.trace("what happened")
-        throw "broke "
-            // If a declarator is malformed, stop trying to parse more.
+            console.trace("what happened")
+            throw "broke "
             break;
         }
-    // The loop ONLY continues if there is a comma after the declarator.
     } while (this._currTokenIs(TOKEN.COMMA));
     
-    // Remember the token before we try to consume a semicolon.
-    const tokenBeforeASI = this.currToken;
-
-
-    this._consumeSemicolon();
-    
-    if (this.currToken === tokenBeforeASI && !this._currTokenIs(TOKEN.EOF) && !this._currTokenIs(TOKEN.RBRACE)) {
-        // This error will fire instead of the browser freezing.
-        throw new Error(
-            `PARSER HALTED: Infinite loop detected. A statement was parsed, but the parser did not advance. ` +
-            `This is typically caused by a missing semicolon before a token that cannot start a new statement. ` +
-            `Stuck at: line ${this.currToken.line}, col ${this.currToken.column}, token "${this.currToken.literal}" (${this.currToken.type})`
-        );
+    // --- THE TIKKUN ---
+    // Only look for a closing semicolon if we are in a normal context.
+    if (!inForHead) {
+        this._consumeSemicolon();
     }
+    
     return this._finishNode({ type: 'VariableDeclaration', declarations, kind }, s);
 };
-// In parser-declarations.js
-proto._parseVariableDeclarator = function(kind) {
-   if(times++>max){
-		throw "maxed"
-		
-		}
+
+// B"H 
+
+proto._parseVariableDeclarator = function(kind, inForHead = false) { // Add inForHead parameter
+   
     const s = this._startNode();
-    const id = this._parseBindingPattern(); // Parses the variable name/pattern.
-    if (!id) return null; // Important for error handling.
+    const id = this._parseBindingPattern(); 
+    if (!id) return null;
 
     let init = null;
     if (this._currTokenIs(TOKEN.ASSIGN)) {
-        this._advance(); // Consume '='
+        this._advance();
         init = this._parseExpression(PRECEDENCE.ASSIGNMENT);
         if (!init) {
-            // If there's an '=' but no expression, it's a syntax error.
             this._error("Expected an expression after '=' in variable declaration.");
             return null;
         }
-    } else if (kind === 'const') {
-        // Enforces that 'const' declarations must have an initializer.
+    // --- THIS IS THE TIKKUN ---
+    // Only enforce the const initializer rule if we are NOT inside the head of a for loop.
+    } else if (kind === 'const' && !inForHead) {
         this._error("'const' declarations must be initialized.");
         return null;
     }
@@ -272,21 +266,34 @@ proto._parseFunction = function(context, isAsync = false) {
     return this._finishNode({ type, id, params, body, async: isAsync, generator: isGenerator }, s);
 };
 
-	proto._parseClassDeclaration = function() {
-		const s = this._startNode();
-		this._expect(TOKEN.CLASS);
-		const id = this._parseIdentifier();
-		if (!id) return null;
-		let superClass = null;
-		if (this._currTokenIs(TOKEN.EXTENDS)) {
-			this._advance();
-			superClass = this._parseIdentifier();
-			if (!superClass) return null;
-		}
-		const body = this._parseClassBody();
-		if (!body) return null;
-		return this._finishNode({ type: 'ClassDeclaration', id, superClass, body }, s);
-	};
+
+
+
+proto._parseClassDeclaration = function() {
+    const s = this._startNode();
+    this._expect(TOKEN.CLASS);
+
+    // --- THE TIKKUN ---
+    // A class declaration's Identifier is optional, specifically for `export default class ...`
+    let id = null;
+    if (this._currTokenIs(TOKEN.IDENT)) {
+        id = this._parseIdentifier();
+    }
+    // We remove the strict requirement that an ID must exist.
+    
+    let superClass = null;
+    if (this._currTokenIs(TOKEN.EXTENDS)) {
+        this._advance();
+        // The superclass is an EXPRESSION, so calling _parseExpression here is correct.
+        // This is what allows it to parse the `(class ChaosMatrix...)` expression.
+        superClass = this._parseExpression(PRECEDENCE.LOWEST);
+        if (!superClass) return null;
+    }
+
+    const body = this._parseClassBody();
+    if (!body) return null;
+    return this._finishNode({ type: 'ClassDeclaration', id, superClass, body }, s);
+};
 
 	// REPLACE your old _parseClassBody with this one
 proto._parseClassBody = function() {
@@ -309,45 +316,74 @@ proto._parseClassBody = function() {
 	
 	
 	
-	// ADD THIS NEW FUNCTION where the old _parseMethodDefinition was
+	
+
+// B"H 
+
+
+
+
 proto._parseClassElement = function() {
     const s = this._startNode();
+
+    // Step 1: Initialize all possible attributes of the class member.
     let isStatic = false;
-    let kind = 'method'; // Default to method
+    let isAsync = false;
     let isGenerator = false;
+    let kind = 'method'; // Default kind
+    let computed = false;
 
-    if (this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'static') {
-        isStatic = true;
-        this._advance();
+    // Step 2: Create a loop to consume all possible prefixes/modifiers.
+    // This allows the parser to correctly handle `static async * myMethod...`
+    while (true) {
+        if (this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'static') {
+            isStatic = true;
+            this._advance();
+            continue;
+        }
+        // --- THIS FIXES THE `async apply()` PROBLEM ---
+        // We see `async`, set the flag, and continue parsing the SAME element.
+        if (this.currToken.type === TOKEN.ASYNC) {
+            isAsync = true;
+            this._advance();
+            continue;
+        }
+        if (this._currTokenIs(TOKEN.ASTERISK)) {
+            isGenerator = true;
+            this._advance();
+            continue;
+        }
+        // Check for get/set after other modifiers.
+        const isGetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'get';
+        const isSetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'set';
+        if (isGetter || isSetter) {
+            kind = isGetter ? 'get' : 'set';
+            this._advance();
+            continue;
+        }
+        // If no more modifiers are found, break the loop.
+        break;
     }
 
-    const isGetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'get';
-    const isSetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'set';
-
-    if (isGetter || isSetter) {
-        kind = isGetter ? 'get' : 'set';
-        this._advance();
-    }
-    
-    if (this._currTokenIs(TOKEN.ASTERISK)) {
-        isGenerator = true;
-        this._advance();
-    }
-
+    // Step 3: Parse the key (the name) of the class member.
     let key;
-    if (this._currTokenIs(TOKEN.PRIVATE_IDENT)) {
-         // We need to use the parser's private identifier helper
-         // This requires adding it from the expressions parser. For now, we'll create it directly.
-         const privateStart = this._startNode();
-         const privateName = this.currToken.literal.slice(1);
-         key = this._finishNode({ type: 'PrivateIdentifier', name: privateName }, privateStart);
-         this._advance();
+    // --- THIS FIXES THE `[Symbol.iterator]` PROBLEM ---
+    // We now correctly check for a computed property name.
+    if (this._currTokenIs(TOKEN.LBRACKET)) {
+        computed = true;
+        this._advance(); // Consume '['
+        key = this._parseExpression(PRECEDENCE.LOWEST); // Parse the expression inside
+        this._expect(TOKEN.RBRACKET); // Consume ']'
+    } else if (this._currTokenIs(TOKEN.PRIVATE_IDENT)) {
+        key = this._parsePrivateIdentifier();
     } else {
+        // For any other case, it must be a standard identifier (or keyword acting as one).
         key = this._parseIdentifier();
     }
     if (!key) return null;
 
-    // If it's NOT a method (i.e., not followed by a '('), it's a class field (PropertyDefinition)
+    // Step 4: Distinguish between a class field and a method.
+    // If the key is NOT followed by '(', it's a field (PropertyDefinition).
     if (!this._currTokenIs(TOKEN.LPAREN)) {
         let value = null;
         if (this._currTokenIs(TOKEN.ASSIGN)) {
@@ -355,27 +391,22 @@ proto._parseClassElement = function() {
             value = this._parseExpression(PRECEDENCE.ASSIGNMENT);
         }
         this._consumeSemicolon();
-        return this._finishNode({ type: 'PropertyDefinition', key, value, static: isStatic, computed: false }, s);
+        return this._finishNode({ 
+            type: 'PropertyDefinition', 
+            key, 
+            value, 
+            static: isStatic, 
+            computed 
+        }, s);
     }
 
-    // --- If we get here, it's a MethodDefinition ---
-    if (key.name === 'constructor' && !isGetter && !isSetter) {
+    // --- If we get here, it is a MethodDefinition ---
+    if (key.name === 'constructor' && kind !== 'get' && kind !== 'set') {
         kind = 'constructor';
     }
 
-    // Parse the function part
-    this._expect(TOKEN.LPAREN);
-    const params = [];
-    if (!this._currTokenIs(TOKEN.RPAREN)) {
-        do {
-            params.push(this._parseBindingWithDefault());
-            
-            
-            if (!this._currTokenIs(TOKEN.COMMA)) break;
-            this._advance();
-        } while (true);
-    }
-    this._expect(TOKEN.RPAREN);
+    // Step 5: Parse the function part of the method.
+    const params = this._parseParametersList(); // This helper correctly parses all parameters.
     const body = this._parseBlockStatement();
     if (!body) return null;
 
@@ -384,16 +415,30 @@ proto._parseClassElement = function() {
         id: null,
         params,
         body,
-        async: false, 
-        generator: isGenerator
+        async: isAsync,     // Apply the collected async flag here.
+        generator: isGenerator // Apply the collected generator flag here.
     };
 
-    return this._finishNode({ type: 'MethodDefinition', key, value: func, kind, static: isStatic, computed: false }, s);
+    return this._finishNode({ 
+        type: 'MethodDefinition', 
+        key, 
+        value: func, 
+        kind, 
+        static: isStatic, 
+        computed              // Apply the collected computed flag here.
+    }, s);
 };
 
+
+
 	// B"H --- UPGRADED Method Definition Parsing ---
-// B"H --- THIS IS THE DEFINITIVE, UNIFIED METHOD PARSER ---
-// Replace the old _parseMethodDefinition with this one.
+
+
+
+
+
+
+
 proto._parseMethodDefinition = function() {
     const s = this._startNode();
     let isStatic = false;
@@ -527,7 +572,9 @@ proto._parseMethodDefinition = function() {
                 declaration = this._parseFunction('expression');
                 break;
             case TOKEN.CLASS:
-                declaration = this._parseClassExpression();
+                // When we see `export default class`, it is a Class DECLARATION.
+                // We must call the declaration parser, not the expression parser.
+                declaration = this._parseClassDeclaration();
                 break;
                 
                 
@@ -613,6 +660,35 @@ proto._parseParametersList = function() {
     return params;
 };
 
+
+
+
+
+
+
+
+// B"H
+
+
+// It contains the pure logic for parsing a comma-separated list of binding patterns.
+
+
+proto._parseParameterListContents = function() {
+    const params = [];
+    if (this._currTokenIs(TOKEN.RPAREN)) return params; // Handle empty list ()
+
+    do {
+        // This function correctly parses destructuring with default values.
+        const param = this._parseBindingWithDefault();
+        if (!param) return null; // Propagate any errors.
+        params.push(param);
+
+        if (!this._currTokenIs(TOKEN.COMMA)) break; // Exit if there are no more parameters.
+        this._advance(); // Consume the comma to prepare for the next parameter.
+    } while (true);
+
+    return params;
+};
 
 
 })(MerkabahParser.prototype);

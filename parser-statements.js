@@ -68,50 +68,55 @@
 		return this._finishNode({ type: 'IfStatement', test, consequent, alternate }, s);
 	};
 
-	// B"H --- CORRECTED For Statement Parsing ---
+	// B"H 
+	
+	
+
 proto._parseForStatement = function() {
     const s = this._startNode();
     this._expect(TOKEN.FOR);
     this._expect(TOKEN.LPAREN);
-    let init = null;
 
-    // This logic branch handles `for (let i = 0; ...)`
-    if (this._currTokenIs(TOKEN.LET) || this._currTokenIs(TOKEN.CONST) || this._currTokenIs(TOKEN.VAR)) {
-        init = this._parseVariableDeclaration(); 
-        // We DO NOT expect a semicolon here, because _parseVariableDeclaration consumed it.
-    
-    // This logic branch handles `for (i = 0; ...)` or `for ( ; ...)`
-    } else if (!this._currTokenIs(TOKEN.SEMICOLON)) {
-        init = this._parseExpression(PRECEDENCE.LOWEST);
-        // An expression MUST be followed by a semicolon.
-        this._expect(TOKEN.SEMICOLON);
-    } else {
-        // This handles the empty init case `for (;;)`
-        this._expect(TOKEN.SEMICOLON);
+    let left = null;
+    if (!this._currTokenIs(TOKEN.SEMICOLON)) {
+        if (this._currTokenIs(TOKEN.LET) || this._currTokenIs(TOKEN.CONST) || this._currTokenIs(TOKEN.VAR)) {
+            // Provide the context: inForHead = true
+            left = this._parseVariableDeclaration(true); 
+        } else {
+            left = this._parseExpression(PRECEDENCE.LOWEST);
+        }
     }
-    
-    // --- The logic for for...in and for...of was also problematic here ---
-    // It is simpler and more correct to check for it *after* parsing the initializer.
-    if (this._currTokenIs(TOKEN.IN) || (this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'of')) {
+
+    // Now, determine the kind of for loop by looking at the next token.
+    if ((this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'of') || this._currTokenIs(TOKEN.IN)) {
+        // It is a for...in or for...of loop.
         const isForOf = this.currToken.literal === 'of';
-        this._advance();
+        this._advance(); // consume 'in' or 'of'
+
+        if (left.type === 'VariableDeclaration' && left.declarations.length > 1) {
+            this._error("for-in/of loops may not contain more than one variable declaration.");
+            return null;
+        }
+        
         const right = this._parseExpression(PRECEDENCE.LOWEST);
         this._expect(TOKEN.RPAREN);
         const body = this._parseDeclaration();
-        if (!init || !right || !body) return null;
-        return this._finishNode({ type: isForOf ? 'ForOfStatement' : 'ForInStatement', left: init, right, body, await: false }, s);
+        if (!left || !right || !body) return null;
+        return this._finishNode({ type: isForOf ? 'ForOfStatement' : 'ForInStatement', left, right, body, await: false }, s);
     }
 
-    // Standard C-style for loop continues from here.
-    // We are now past the first semicolon.
+    // If not for...in/of, it must be a C-style for loop.
+    this._expect(TOKEN.SEMICOLON);
     const test = this._currTokenIs(TOKEN.SEMICOLON) ? null : this._parseExpression(PRECEDENCE.LOWEST);
     this._expect(TOKEN.SEMICOLON);
     const update = this._currTokenIs(TOKEN.RPAREN) ? null : this._parseExpression(PRECEDENCE.LOWEST);
     this._expect(TOKEN.RPAREN);
     const body = this._parseDeclaration();
     if (!body) return null;
-    return this._finishNode({ type: 'ForStatement', init, test, update, body }, s);
+    return this._finishNode({ type: 'ForStatement', init: left, test, update, body }, s);
 };
+
+
 
 	proto._parseWhileStatement = function() {
 		const s = this._startNode();

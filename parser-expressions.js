@@ -332,58 +332,61 @@
 
 
 
+// B"H
+
+
+
+
+// B"H 
+
 proto._parseGroupedOrArrowExpression = function() {
     const s = this._startNode();
     this._expect(TOKEN.LPAREN);
 
-    // Handle the special case of an empty `()`
-    if (this._currTokenIs(TOKEN.RPAREN)) {
-        this._expect(TOKEN.RPAREN);
-        if (this._currTokenIs(TOKEN.ARROW)) {
-            // This is a no-parameter arrow function: () => ...
-            return this._parseArrowFunctionExpression(s, [], false);
+    if (this._currTokenIs(TOKEN.RPAREN)) { // handles `()` for `() => ...`
+        this._advance();
+        if (!this._currTokenIs(TOKEN.ARROW)) {
+            this._error("Unexpected empty parentheses in expression.");
+            return null;
         }
-        // This was just `()`, which is an error in an expression context.
-        this._error("Unexpected empty parentheses in expression.");
-        return null;
+        return this._parseArrowFunctionExpression(s, [], false);
     }
 
-    // THIS IS THE CRITICAL CHANGE:
-    // Parse the content as a single, generic expression first.
-    // This will correctly handle `(a + b)` and even `(async () => {...})`.
-    const innerExpression = this._parseExpression(PRECEDENCE.LOWEST);
-    
+    // --- The Tikkun HaGadol (The Great Rectification) ---
+    const exprList = [];
+    do {
+        // Step 1: The Heuristic.
+        // If the token inside the parentheses is `{` or `[`, we can be almost certain
+        // that this is a destructuring pattern for an arrow function's parameters.
+        if (this._currTokenIs(TOKEN.LBRACE) || this._currTokenIs(TOKEN.LBRACKET)) {
+            // Use the parser that is specifically designed for patterns with default values.
+            // This correctly parses `({ customId = id } = {})`.
+            exprList.push(this._parseBindingWithDefault());
+        } else {
+            // For all other cases, like `(function*(){...})` or `(a + b)`,
+            // parse it as a standard, generic expression.
+            exprList.push(this._parseExpression(PRECEDENCE.ASSIGNMENT));
+        }
+    } while (this._currTokenIs(TOKEN.COMMA) && (this._advance(), true));
+
     this._expect(TOKEN.RPAREN);
 
-    // NOW, AFTER we have parsed the content and the closing parenthesis,
-    // we check if an arrow follows. This is the only way to resolve the ambiguity.
+    // Step 2: Resolve the ambiguity.
+    // After parsing the contents, we look for the `=>` to make our final decision.
     if (this._currTokenIs(TOKEN.ARROW)) {
-        let params = [];
-        let isAsync = false;
-
-        // Now we reverse-engineer the parameter list from the expression we parsed.
-        if (innerExpression.type === 'Identifier') {
-            // Case: (a) => ...  or async a => ... (handled elsewhere)
-            params = [innerExpression];
-        } else if (innerExpression.type === 'SequenceExpression') {
-            // Case: (a, b) => ...
-            params = innerExpression.expressions;
-        } else if (innerExpression.type === 'ArrowFunctionExpression' && innerExpression.async) {
-            // This handles the IIFE case: `(async () => {})`
-            // The expression itself is the function. The arrow we see now is an error.
-             this._error("Unexpected token => after async arrow function in parentheses.");
-             return null;
-        } else {
-             this._error("Invalid parameter list for arrow function.");
-             return null;
-        }
-        
-        return this._parseArrowFunctionExpression(s, params, isAsync);
+        // It IS an arrow function. Convert the parsed expressions to valid patterns.
+        const params = exprList.map(e => this._convertExpressionToPattern(e));
+        return this._parseArrowFunctionExpression(s, params, false);
     }
 
-    // If no arrow followed, the expression we parsed was just a grouped expression.
-    // Return it as is.
-    return innerExpression;
+    // It was NOT an arrow function. Return the parsed content as a grouped expression or sequence.
+    if (exprList.length > 1) {
+        const seqNode = { type: 'SequenceExpression', expressions: exprList };
+        const seqStart = { loc: { start: exprList[0].loc.start } };
+        return this._finishNode(seqNode, seqStart);
+    } else {
+        return exprList[0];
+    }
 };
 		
 		
@@ -1010,6 +1013,55 @@ proto._parsePrivateIdentifier = function() {
     const node = { type: 'PrivateIdentifier', name: name };
     this._advance();
     return this._finishNode(node, s);
+};
+
+
+
+
+
+
+// Its purpose is to convert an AST parsed as an expression into a valid pattern for binding.
+
+
+// B"H 
+
+proto._convertExpressionToPattern = function(node) {
+    if (!node) return null;
+    switch (node.type) {
+        // --- THE TIKKUN (THE FIX) ---
+        // An AssignmentPattern is ALREADY a valid pattern. It represents a
+        // parameter with a default value. We simply allow it to pass through.
+        case 'AssignmentPattern':
+        case 'Identifier':
+        case 'ObjectPattern':
+        case 'ArrayPattern':
+            return node;
+
+        // Convert expression types to their pattern equivalents.
+        case 'ObjectExpression':
+            node.type = 'ObjectPattern';
+            node.properties.forEach(prop => {
+                // The key of a property is not converted, but its value is.
+                prop.value = this._convertExpressionToPattern(prop.value);
+            });
+            return node;
+
+        case 'ArrayExpression':
+            node.type = 'ArrayPattern';
+            node.elements = node.elements.map(el => this._convertExpressionToPattern(el));
+            return node;
+        
+        // This case is now handled above, but we keep the logic for clarity.
+        case 'AssignmentExpression':
+            node.type = 'AssignmentPattern';
+            node.left = this._convertExpressionToPattern(node.left);
+            return node;
+
+        // If we find an expression that truly cannot be a pattern, it's a syntax error.
+        default:
+            this._error(`Cannot use expression of type ${node.type} as a parameter.`);
+            return null;
+    }
 };
 
 
