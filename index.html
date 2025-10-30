@@ -113,7 +113,8 @@ export default class UltimateConfigurator {
     
     <script type="awtsmoos" id="makor3">
     
-    // B"H --- The Ein Sof Test: The Unknowable Limit ---
+    // B"H 
+    //--- The Ein Sof Test: The Unknowable Limit ---
 // A script to test the parser's ability to comprehend the deepest layers of metaprogramming and asynchronous grammar.
 
 export default (class EinSof_Construct {
@@ -321,7 +322,8 @@ export default class TranscendentalReducer extends (class ChaosMatrix extends Ar
     
     
     <script type="Awtsmoos" id="makor4">
-    // B"H --- The Azilut Test: The World of Emanation ---
+    // B"H 
+    //--- The Azilut Test: The World of Emanation ---
 // A script that abuses deprecated, obscure, and lexically treacherous syntax.
 // WARNING: This is not a demonstration of good practice. It is a rite of passage for a parser.
 
@@ -400,6 +402,70 @@ export default class MetaphysicalEngine {
 }
     
     </script>
+    
+    <script type="awtsmoos" id="makor5">
+    // B"H --- The Tzimtzum Test: The Primordial Contraction ---
+// A script that abuses lexical ambiguity, ASI, and the very boundaries of the grammar.
+
+// Let there be a void in which to create...
+const PrimordialVoid = { 
+    x: 10,
+    log: (msg) => console.log(`[Void]: ${msg}`)
+};
+
+export default (function Tzimtzum_IIFE() {
+    
+    // 1. Stress Point: HTML-style comments. A true relic.
+    <!-- This is a valid single-line comment.
+    
+    let counter = 10;
+    
+    // 2. Stress Point: The infamous, deprecated, and NESTED `with` statement.
+    OuterWith:
+    with (PrimordialVoid) {
+        with ({ y: 5 }) {
+            // This loop uses a lexical illusion. '-->' is NOT an operator.
+            // It is parsed as `counter-- > y`.
+            while (counter --> y) {
+                if (counter % 2 === 0) {
+                    log(`Continuum shift at ${counter}...`);
+                    // 3. Stress Point: `continue` to a label across a `with` boundary.
+                    continue OuterWith; 
+                }
+            }
+        }
+    }
+    
+    // This function's meaning is entirely dependent on the parser's understanding of ASI.
+    function divideOrRegex() {
+        // 4. Stress Point: Automatic Semicolon Insertion vs. Regex/Division.
+        // A newline after `return` MUST insert a semicolon, making the next line
+        // a standalone RegExp statement, NOT a division operation.
+        return
+        /^(a|b)$/i.test('A'); // If parsed as division, this is a catastrophic failure.
+    }
+    
+    // 5. Stress Point: `void` operator on an IIFE.
+    void function logState() {
+        console.log('State after contraction:', { result: divideOrRegex() });
+    }();
+
+    // 6. Stress Point: `String.raw` with content that would otherwise be a syntax error.
+    // The parser must correctly tokenize this as a single tagged template literal.
+    const rawContent = String.raw`This template contains a fake unterminated string: " and a fake comment: /*`;
+
+    // The final return from the main IIFE
+    return {
+        rawContent,
+        finalState: 'Tzimtzum Complete.'
+    };
+})();
+
+--> This is also a valid single-line comment (only at the start of a line).
+    
+    
+    </script>
+    
     
     <!-- Load scripts in the correct, required order -->
     <script src="constants.js"></script>

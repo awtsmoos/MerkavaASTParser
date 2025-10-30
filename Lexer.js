@@ -164,9 +164,12 @@ _readPrivateIdentifier() {
     return this._makeToken(TOKEN.PRIVATE_IDENT, '#' + ident, startColumn);
 }
 
+	// B"H
+// --- Start of Replacement for _skipWhitespace in Lexer.js ---
+
 	_skipWhitespace() {
 		while (this.ch !== null) {
-			this._guard(); // Guard each iteration of the outer loop.
+			this._guard(); 
 			if (' \t'.includes(this.ch)) {
 				this._advance();
 			} else if ('\n\r'.includes(this.ch)) {
@@ -189,12 +192,24 @@ _readPrivateIdentifier() {
 					this._advance();
 				}
 				if (this.ch !== null) { this._advance(); this._advance(); }
+            
+            // --- THIS IS THE TIKKUN (THE FIX) ---
+            // Recognize HTML-style open comments `<!--`
+            } else if (this.ch === '<' && this._peek() === '!' && this.source.substring(this.position, this.position + 4) === '<!--') {
+                while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
+
+            // Recognize HTML-style close comments `-->`, but ONLY at the start of a line.
+            } else if (this.column === 1 && this.ch === '-' && this._peek() === '-' && this.source.substring(this.position, this.position + 3) === '-->') {
+                 while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
+            
+
 			} else {
 				break;
 			}
 		}
 	}
-	
+
+// --- 
 	_readTemplateHead() {
 		this._guard();
 		this._advance();
