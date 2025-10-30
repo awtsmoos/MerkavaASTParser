@@ -204,5 +204,49 @@ proto._parseForStatement = function() {
         this._consumeSemicolon();
         return this._finishNode({ type: 'BreakStatement', label: null }, s);
     };
+    
+    
+    // ADD THIS FINAL FUNCTION to the bottom of parser-statements.js
+
+    proto._parseTryStatement = function() {
+        const s = this._startNode();
+        this._expect(TOKEN.TRY);
+    
+        const block = this._parseBlockStatement(); // The main 'try' block
+        let handler = null;
+        let finalizer = null;
+    
+        // Parse the 'catch' block, if it exists
+        if (this._currTokenIs(TOKEN.CATCH)) {
+            const catchStart = this._startNode();
+            this._advance(); // consume 'catch'
+            
+            let param = null;
+            // The parameter in catch is optional: catch {..} vs catch(e) {..}
+            if (this._currTokenIs(TOKEN.LPAREN)) {
+                this._expect(TOKEN.LPAREN);
+                param = this._parseBindingPattern(); // Parse the error parameter (e.g., 'e')
+                this._expect(TOKEN.RPAREN);
+            }
+            
+            const catchBody = this._parseBlockStatement();
+            handler = this._finishNode({ type: 'CatchClause', param, body: catchBody }, catchStart);
+        }
+    
+        // Parse the 'finally' block, if it exists
+        if (this._currTokenIs(TOKEN.FINALLY)) {
+            this._advance(); // consume 'finally'
+            finalizer = this._parseBlockStatement();
+        }
+    
+        // A 'try' must have either a 'catch' or a 'finally'
+        if (!handler && !finalizer) {
+            this._error("try statement must have a catch or finally block.");
+            return null;
+        }
+    
+        return this._finishNode({ type: 'TryStatement', block, handler, finalizer }, s);
+    };
+    
 
 })(MerkabahParser.prototype);

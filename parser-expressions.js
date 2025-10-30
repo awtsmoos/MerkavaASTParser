@@ -56,6 +56,8 @@
 				this
 				._parseClassExpression;
 				
+				p[TOKEN.ASYNC] = this._parseAsyncExpression;
+				
 				
 				p[TOKEN.YIELD] = this._parseYieldExpression;
 				
@@ -324,43 +326,70 @@
 					prefix: e
 				}, s)
 		};
-	proto
-		._parseGroupedOrArrowExpression =
-		function() {
-			const t = this
-				._startNode();
-			if (this._expect(TOKEN
-					.LPAREN), this
-				._currTokenIs(TOKEN
-					.RPAREN))
-				return this._expect(
-						TOKEN.RPAREN
-					), this
-					._currTokenIs(
-						TOKEN.ARROW
-					) ? this
-					._parseArrowFunctionExpression(
-						t, []) : (
-						this._error(
-							"Unexpected empty parentheses."
-						), null);
-			const e = this
-				._parseExpression(
-					PRECEDENCE
-					.LOWEST);
-			return this._expect(
-					TOKEN.RPAREN),
-				this._currTokenIs(
-					TOKEN.ARROW) ?
-				this
-				._parseArrowFunctionExpression(
-					t,
-					"SequenceExpression" ===
-					e.type ? e
-					.expressions : [
-						e
-					]) : e
-		};
+		
+		
+	
+
+
+
+proto._parseGroupedOrArrowExpression = function() {
+    const s = this._startNode();
+    this._expect(TOKEN.LPAREN);
+
+    // Handle the special case of an empty `()`
+    if (this._currTokenIs(TOKEN.RPAREN)) {
+        this._expect(TOKEN.RPAREN);
+        if (this._currTokenIs(TOKEN.ARROW)) {
+            // This is a no-parameter arrow function: () => ...
+            return this._parseArrowFunctionExpression(s, [], false);
+        }
+        // This was just `()`, which is an error in an expression context.
+        this._error("Unexpected empty parentheses in expression.");
+        return null;
+    }
+
+    // THIS IS THE CRITICAL CHANGE:
+    // Parse the content as a single, generic expression first.
+    // This will correctly handle `(a + b)` and even `(async () => {...})`.
+    const innerExpression = this._parseExpression(PRECEDENCE.LOWEST);
+    
+    this._expect(TOKEN.RPAREN);
+
+    // NOW, AFTER we have parsed the content and the closing parenthesis,
+    // we check if an arrow follows. This is the only way to resolve the ambiguity.
+    if (this._currTokenIs(TOKEN.ARROW)) {
+        let params = [];
+        let isAsync = false;
+
+        // Now we reverse-engineer the parameter list from the expression we parsed.
+        if (innerExpression.type === 'Identifier') {
+            // Case: (a) => ...  or async a => ... (handled elsewhere)
+            params = [innerExpression];
+        } else if (innerExpression.type === 'SequenceExpression') {
+            // Case: (a, b) => ...
+            params = innerExpression.expressions;
+        } else if (innerExpression.type === 'ArrowFunctionExpression' && innerExpression.async) {
+            // This handles the IIFE case: `(async () => {})`
+            // The expression itself is the function. The arrow we see now is an error.
+             this._error("Unexpected token => after async arrow function in parentheses.");
+             return null;
+        } else {
+             this._error("Invalid parameter list for arrow function.");
+             return null;
+        }
+        
+        return this._parseArrowFunctionExpression(s, params, isAsync);
+    }
+
+    // If no arrow followed, the expression we parsed was just a grouped expression.
+    // Return it as is.
+    return innerExpression;
+};
+		
+		
+		
+		
+		
 	proto._parseBinaryExpression =
 		function(t) {
 			const e = this
@@ -637,30 +666,60 @@
 					argument: e
 				}, t)
 		};
-	proto
-		._parseArrowFunctionExpression =
-		function(t, e) {
-			this._expect(TOKEN
-				.ARROW);
-			const s = this
-				._currTokenIs(TOKEN
-					.LBRACE) ? this
-				._parseBlockStatement() :
-				this
-				._parseExpression(
-					PRECEDENCE
-					.ASSIGNMENT);
-			return this
-				._finishNode({
-					type: "ArrowFunctionExpression",
-					id: null,
-					params: e,
-					body: s,
-					async: !1,
-					expression: "BlockStatement" !==
-						s.type
-				}, t)
-		};
+	
+
+proto._parseArrowFunctionExpression = function(t, e, isAsync = false) { // The 'isAsync' parameter is new
+    this._expect(TOKEN.ARROW);
+    const s = this._currTokenIs(TOKEN.LBRACE) ? this._parseBlockStatement() : this._parseExpression(PRECEDENCE.ASSIGNMENT);
+    return this._finishNode({
+        type: "ArrowFunctionExpression",
+        id: null,
+        params: e,
+        body: s,
+        async: isAsync, // Use the new parameter here
+        expression: "BlockStatement" !== s.type
+    }, t)
+};
+
+
+
+// ADD THIS ENTIRE NEW FUNCTION to parser-expressions.js
+// This is the new, smart entry point for all 'async' expressions.
+proto._parseAsyncExpression = function() {
+    const s = this._startNode();
+    this._advance(); // Consume 'async'
+
+    // After 'async', we could have 'async function() {}'
+    if (this._currTokenIs(TOKEN.FUNCTION)) {
+        // It's an async function EXPRESSION, so we call _parseFunction and tell it.
+        return this._parseFunction('expression', true);
+    }
+
+    // Otherwise, it MUST be an async arrow function.
+    // An arrow function can start with an identifier (async a => ...)
+    // or parentheses (async () => ...). Let's parse that part.
+    let arrowFn;
+    if (this._currTokenIs(TOKEN.LPAREN)) {
+        arrowFn = this._parseGroupedOrArrowExpression();
+    } else if (this._currTokenIs(TOKEN.IDENT)) {
+        arrowFn = this._parseIdentifier();
+    } else {
+        return this._error("Unexpected token after async keyword.");
+    }
+
+    // Now, we must verify that what we parsed was actually an arrow function
+    if (arrowFn && arrowFn.type === 'ArrowFunctionExpression') {
+        // It was! Now, we mark it as async and fix its start location.
+        arrowFn.async = true;
+        arrowFn.loc.start = s.loc.start; // The start was the 'async' token, not the '(' or identifier.
+        return arrowFn;
+    }
+
+    // If we get here, it was something like `async (a + b)`, which is invalid.
+    return this._error("async keyword must be followed by a function or an arrow function.");
+};
+
+
 	proto._parseFunctionExpression =
 		function() {
 			return this

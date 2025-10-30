@@ -32,15 +32,16 @@ proto._parseDeclaration = function() {
         
         case TOKEN.SWITCH: return this._parseSwitchStatement();
         case TOKEN.BREAK: return this._parseBreakStatement();
+        
+        
+        case TOKEN.TRY: return this._parseTryStatement();
 
         // Async Function Declaration check
         case TOKEN.ASYNC:
-            if (this._peekTokenIs(TOKEN.FUNCTION)) {
-                this._advance();
-                return this._parseFunction('declaration', true);
-            }
-            // Fall through to default for async expressions
-            
+    if (this._peekTokenIs(TOKEN.FUNCTION)) {
+        this._advance();
+        return this._parseFunction('declaration', true);
+    }
         // Default Case
         default:
             // If it's none of the above, it must be an expression statement.
@@ -71,24 +72,48 @@ proto._parseDeclaration = function() {
 	*  This function is responsible for parsing a single property inside
 	*  an object pattern, like `a`, `a: b`, or `a = 1` in `{ a, a: b, a = 1}`.
 	***********************************************************************/
-	proto._parseProperty = function() {
-		const s = this._startNode();
-		if (!this._currTokenIs(TOKEN.IDENT)) {
-			this._error("Expected identifier in object pattern property.");
-			return null;
-		}
-		const key = this._parseIdentifier();
-		let value = key;
-		let shorthand = true;
-		
-		if (this._currTokenIs(TOKEN.COLON)) {
-			shorthand = false;
-			this._advance(); // consume ':'
-			value = this._parseBindingPattern(); // The value in a pattern is another pattern
-		}
-		
-		return this._finishNode({ type: 'Property', key, value, kind: 'init', method: false, shorthand, computed: false }, s);
-	};
+	// REPLACE your old _parseProperty function with this final, upgraded version.
+proto._parseProperty = function() {
+    const s = this._startNode();
+    if (!this._currTokenIs(TOKEN.IDENT)) {
+        this._error("Expected identifier in object pattern property.");
+        return null;
+    }
+    const key = this._parseIdentifier();
+    let value = key;
+    let shorthand = true;
+
+    // Check for aliasing: { oldName: newName } or { oldName: newName = defaultValue }
+    if (this._currTokenIs(TOKEN.COLON)) {
+        shorthand = false;
+        this._advance(); // consume ':'
+        value = this._parseBindingPattern(); // The value is another pattern
+    }
+
+    // THIS IS THE UPGRADE: Now, check for a default value for this property
+    if (this._currTokenIs(TOKEN.ASSIGN)) {
+        // If there's a default value, it must be an AssignmentPattern.
+        // The 'value' we've parsed so far is the 'left' side of the assignment.
+        const assignStart = this._startNode();
+        assignStart.loc.start = value.loc.start;
+        this._advance(); // consume '='
+        const right = this._parseExpression(PRECEDENCE.ASSIGNMENT); // Parse the default value
+        
+        // Wrap the property's value in an AssignmentPattern node.
+        value = this._finishNode({ type: 'AssignmentPattern', left: value, right: right }, assignStart);
+        shorthand = false; // A property with a default value can't be shorthand.
+    }
+
+    return this._finishNode({ 
+        type: 'Property', 
+        key: key, 
+        value: value, // The value can now be an Identifier, a Pattern, or an AssignmentPattern
+        kind: 'init', 
+        method: false, 
+        shorthand: shorthand, 
+        computed: false 
+    }, s);
+};
 
 	proto._parseObjectPattern = function() {
 		const s = this._startNode();
@@ -205,33 +230,47 @@ proto._parseVariableDeclarator = function(kind) {
 
     return this._finishNode({ type: 'VariableDeclarator', id, init }, s);
 };
-	proto._parseFunction = function(context, isAsync = false) {
-		const s = this._startNode();
-		if (this.currToken.type === TOKEN.FUNCTION) this._advance();
-		let id = null;
-		if (this._currTokenIs(TOKEN.IDENT)) {
-			id = this._parseIdentifier();
-		} else if (context === 'declaration') {
-			this._error("Function declarations require a name");
-            return null;
-		}
-		this._expect(TOKEN.LPAREN);
-		const params = [];
-		if (!this._currTokenIs(TOKEN.RPAREN)) {
-			do {
-				const param = this._parseBindingPattern();
-				if (!param) return null;
-				params.push(param);
-                if (!this._currTokenIs(TOKEN.COMMA)) break;
-                this._advance();
-			} while (true);
-		}
-		this._expect(TOKEN.RPAREN);
-		const body = this._parseBlockStatement();
-		if (!body) return null;
-		const type = context === 'declaration' ? 'FunctionDeclaration' : 'FunctionExpression';
-		return this._finishNode({ type, id, params, body, async: isAsync, generator: false }, s);
-	};
+	// REPLACE your current _parseFunction with this final version.
+proto._parseFunction = function(context, isAsync = false) {
+    const s = this._startNode();
+    if (this.currToken.type === TOKEN.FUNCTION) this._advance();
+
+    // THIS IS THE UPGRADE: Check for the generator star *before* the name.
+    const isGenerator = this._currTokenIs(TOKEN.ASTERISK);
+    if (isGenerator) {
+        this._advance(); // Consume '*'
+    }
+
+    let id = null;
+    if (this._currTokenIs(TOKEN.IDENT)) {
+        id = this._parseIdentifier();
+    } else if (context === 'declaration') {
+        this._error("Function declarations require a name");
+        return null;
+    }
+    
+    this._expect(TOKEN.LPAREN);
+    const params = [];
+    if (!this._currTokenIs(TOKEN.RPAREN)) {
+        do {
+            const param = this._parseBindingWithDefault()
+            
+            if (!param) return null;
+            params.push(param);
+            if (!this._currTokenIs(TOKEN.COMMA)) break;
+            this._advance();
+        } while (true);
+    }
+    this._expect(TOKEN.RPAREN);
+    
+    const body = this._parseBlockStatement();
+    if (!body) return null;
+    
+    const type = context === 'declaration' ? 'FunctionDeclaration' : 'FunctionExpression';
+    
+    // Pass the generator flag when creating the final node.
+    return this._finishNode({ type, id, params, body, async: isAsync, generator: isGenerator }, s);
+};
 
 	proto._parseClassDeclaration = function() {
 		const s = this._startNode();
@@ -329,7 +368,9 @@ proto._parseClassElement = function() {
     const params = [];
     if (!this._currTokenIs(TOKEN.RPAREN)) {
         do {
-            params.push(this._parseBindingPattern());
+            params.push(this._parseBindingWithDefault());
+            
+            
             if (!this._currTokenIs(TOKEN.COMMA)) break;
             this._advance();
         } while (true);
@@ -488,9 +529,12 @@ proto._parseMethodDefinition = function() {
             case TOKEN.CLASS:
                 declaration = this._parseClassExpression();
                 break;
+                
+                
             case TOKEN.ASYNC:
+                 // Check if it's `export default async function...`
                  if (this._peekTokenIs(TOKEN.FUNCTION)) {
-                    this._advance();
+                    this._advance(); // consume 'async'
                     declaration = this._parseFunction('expression', true);
                  } else {
                     // This is the fallback for an async expression
@@ -532,5 +576,43 @@ proto._parseMethodDefinition = function() {
     
     return this._finishNode({ type: 'ExportNamedDeclaration', declaration, specifiers: [], source: null }, s);
 };
+
+
+
+// ADD THIS NEW HELPER FUNCTION to parser-declarations.js
+proto._parseBindingWithDefault = function() {
+    const s = this._startNode();
+    const left = this._parseBindingPattern(); // First, parse the parameter name/pattern
+    if (!left) return null;
+
+    // NOW, check if it's followed by a default value
+    if (this._currTokenIs(TOKEN.ASSIGN)) {
+        this._advance(); // consume '='
+        const right = this._parseExpression(PRECEDENCE.ASSIGNMENT); // Parse the expression for the default value
+        // Wrap the whole thing in an AssignmentPattern node
+        return this._finishNode({ type: 'AssignmentPattern', left, right }, s);
+    }
+
+    return left; // If there was no '=', just return the simple parameter node
+};
+
+
+
+// ADD THIS NEW HELPER FUNCTION to parser-declarations.js
+// Its only job is to parse a list of parameters.
+proto._parseParametersList = function() {
+    const params = [];
+    this._expect(TOKEN.LPAREN);
+    if (!this._currTokenIs(TOKEN.RPAREN)) {
+        do {
+            // Use our most powerful pattern-parsing function
+            params.push(this._parseBindingWithDefault());
+        } while (this._currTokenIs(TOKEN.COMMA) && (this._advance(), true));
+    }
+    this._expect(TOKEN.RPAREN);
+    return params;
+};
+
+
 
 })(MerkabahParser.prototype);
