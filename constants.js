@@ -9,6 +9,9 @@ const TOKEN = {
     
     VOID: 'VOID',
     
+    LOGICAL_OR_ASSIGN: '||=',
+    LOGICAL_AND_ASSIGN: '&&=',
+    
     BITWISE_AND: '&',
     BITWISE_OR: '|',
     BITWISE_XOR: '^',

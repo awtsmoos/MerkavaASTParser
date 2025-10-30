@@ -63,69 +63,55 @@ class Lexer {
 	// -------------------------------------------------------------------------
 	// --- THE SINGLE, CORRECT, AND FINAL _skipWhitespace METHOD ---
 	// -------------------------------------------------------------------------
-	// B"H --- THE DEFINITIVE AND FINAL _skipWhitespace METHOD ---
+// B"H 
+//--- THE DEFINITIVE AND FINAL _skipWhitespace METHOD ---
 
 _skipWhitespace() {
     while (this.ch !== null) {
         this._guard();
 
-        // Handle simple whitespace
-        if (this.ch === ' ' || this.ch === '\t') {
+        if (' \t'.includes(this.ch)) {
             this._advance();
-            continue;
-        }
 
-        // The SINGLE SOURCE OF TRUTH for handling newlines.
-        // All single-line comment handlers will stop at a newline, allowing this block to run.
-        if (this.ch === '\n' || this.ch === '\r') {
+        } else if ('\n\r'.includes(this.ch)) {
             this.hasLineTerminatorBefore = true;
-            if (this.ch === '\r' && this._peek() === '\n') this._advance(); // Handle CRLF
-            this._advance(); // Consume LF
+            if (this.ch === '\r' && this._peek() === '\n') this._advance();
+            this._advance();
             this.line++;
             this.column = 0;
-            continue;
-        }
 
-        // Handle all single-line comment types.
-        const isJSComment = this.ch === '/' && this._peek() === '/';
-        const isHTMLOpenComment = this.ch === '<' && this._peek() === '!' && this.source.substring(this.position, this.position + 4) === '<!--';
-        const isHTMLCloseComment = this.column === 1 && this.ch === '-' && this._peek() === '-' && this.source.substring(this.position, this.position + 3) === '-->';
+        } else if (this.ch === '/' && this._peek() === '/') {
+            while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
 
-        if (isJSComment || isHTMLOpenComment || isHTMLCloseComment) {
-            // This is the simple, robust logic: consume everything until the line ends.
-            // Do not try to parse anything inside the comment.
-            while (this.ch !== null && this.ch !== '\n' && this.ch !== '\r') {
-                this._advance();
-            }
-            // Now, loop again. The master newline handler above will take care of the state reset.
-            continue;
-        }
-
-        // Handle multi-line JS comments
-        if (this.ch === '/' && this._peek() === '*') {
-            this._advance(); // Consume '/'
-            this._advance(); // Consume '*'
+        } else if (this.ch === '/' && this._peek() === '*') {
+            this._advance(); this._advance();
             while (this.ch !== null && (this.ch !== '*' || this._peek() !== '/')) {
-                // Multi-line comments are the only case that must handle newlines internally.
-                if (this.ch === '\n' || this.ch === '\r') {
+                if ('\n\r'.includes(this.ch)) {
                     this.hasLineTerminatorBefore = true;
                     if (this.ch === '\r' && this._peek() === '\n') this._advance();
-                    this._advance();
                     this.line++;
                     this.column = 0;
-                    continue; // Restart the inner comment-parsing loop
                 }
                 this._advance();
             }
-            if (this.ch !== null) { // Consume closing '*/'
-                this._advance();
-                this._advance();
-            }
-            continue;
-        }
+            if (this.ch !== null) { this._advance(); this._advance(); }
 
-        // If no whitespace or comment was found, it must be a token. Stop skipping.
-        break;
+        // --- THE FIX IS HERE ---
+        // Both HTML-style comments are now correctly guarded by the hasLineTerminatorBefore flag.
+        // This ensures they are only treated as comments at the start of a line.
+
+        } else if (this.hasLineTerminatorBefore && this.ch === '<' && this._peek() === '!' && this.source.substring(this.position, this.position + 4) === '<!--') {
+            while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
+
+        } else if (this.hasLineTerminatorBefore && this.ch === '-' && this._peek() === '-' && this.source.substring(this.position, this.position + 3) === '-->') {
+            while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
+        
+        // --- END OF FIX ---
+
+        } else {
+            // If it's not whitespace or a comment, it's a token.
+            break;
+        }
     }
 }
 	// -------------------------------------------------------------------------
@@ -133,121 +119,146 @@ _skipWhitespace() {
 	// -------------------------------------------------------------------------
 
 
-	nextToken() {
-		this._guard();
-		this.hasLineTerminatorBefore = false;
-		this._skipWhitespace();
+	// B"H
+// In Lexer.js, replace the nextToken method with this one.
+// This version adds support for the logical assignment operators '&&=' and '||='.
+nextToken() {
+    this._guard();
+    this.hasLineTerminatorBefore = false;
+    this._skipWhitespace();
 
-		const startLine = this.line;
-		const startColumn = this.column;
+    const startLine = this.line;
+    const startColumn = this.column;
 
-		if (this.ch === null) {
-			return this._makeToken(TOKEN.EOF, '', startColumn, startLine);
-		}
+    if (this.ch === null) {
+        return this._makeToken(TOKEN.EOF, '', startColumn, startLine);
+    }
 
-		if (this.templateStack.length > 0 && this.ch === '}') {
-			return this._readTemplateMiddleOrTail();
-		}
+    if (this.templateStack.length > 0 && this.ch === '}') {
+        return this._readTemplateMiddleOrTail();
+    }
 
-		const c = this.ch;
-		let tok;
+    const c = this.ch;
+    let tok;
 
-		switch (c) {
-			case '=':
-				if (this._peek() === '>') { this._advance(); tok = this._makeToken(TOKEN.ARROW, '=>', startColumn); }
-				else if (this._peek() === '=') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EQ_STRICT, '===', startColumn)) : this._makeToken(TOKEN.EQ, '==', startColumn); }
-				else { tok = this._makeToken(TOKEN.ASSIGN, '=', startColumn); }
-				break;
-			case '!':
-				if (this._peek() === '=') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NOT_EQ_STRICT, '!==', startColumn)) : this._makeToken(TOKEN.NOT_EQ, '!=', startColumn); }
-				else { tok = this._makeToken(TOKEN.BANG, '!', startColumn); }
-				break;
-			case '+':
-				if (this._peek() === '+') { this._advance(); tok = this._makeToken(TOKEN.INCREMENT, '++', startColumn); }
-				else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.PLUS_ASSIGN, '+=', startColumn); }
-				else { tok = this._makeToken(TOKEN.PLUS, '+', startColumn); }
-				break;
-			case '-':
-				if (this._peek() === '-') { this._advance(); tok = this._makeToken(TOKEN.DECREMENT, '--', startColumn); }
-				else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MINUS_ASSIGN, '-=', startColumn); }
-				else { tok = this._makeToken(TOKEN.MINUS, '-', startColumn); }
-				break;
-			case '*':
-				if (this._peek() === '*') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EXPONENT_ASSIGN, '**=', startColumn)) : this._makeToken(TOKEN.EXPONENT, '**', startColumn); }
-				else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.ASTERISK_ASSIGN, '*=', startColumn); }
-				else { tok = this._makeToken(TOKEN.ASTERISK, '*', startColumn); }
-				break;
-			case '/':
-				if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.SLASH_ASSIGN, '/=', startColumn); }
-				else { tok = this._makeToken(TOKEN.SLASH, '/', startColumn); }
-				break;
-			case '%':
-	            if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MODULO_ASSIGN, '%=', startColumn); }
-	            else { tok = this._makeToken(TOKEN.MODULO, '%', startColumn); }
-	            break;
-            case '<':
-                if (this._peek() === '<') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.LEFT_SHIFT_ASSIGN, '<<=', startColumn)) : this._makeToken(TOKEN.LEFT_SHIFT, '<<', startColumn); }
-                else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.LTE, '<=', startColumn); }
-                else { tok = this._makeToken(TOKEN.LT, '<', startColumn); }
-                break;
-            case '>':
-                if (this._peek() === '>') { this._advance(); if (this._peek() === '>') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN, '>>>=', startColumn)) : this._makeToken(TOKEN.UNSIGNED_RIGHT_SHIFT, '>>>', startColumn); } else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.RIGHT_SHIFT_ASSIGN, '>>=', startColumn); } else { tok = this._makeToken(TOKEN.RIGHT_SHIFT, '>>', startColumn); } }
-                else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.GTE, '>=', startColumn); }
-                else { tok = this._makeToken(TOKEN.GT, '>', startColumn); }
-                break;
-            case '&':
-                if (this._peek() === '&') { this._advance(); tok = this._makeToken(TOKEN.AND, '&&', startColumn); }
-                else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_AND_ASSIGN, '&=', startColumn); }
-                else { tok = this._makeToken(TOKEN.BITWISE_AND, '&', startColumn); }
-                break;
-            case '|':
-                if (this._peek() === '|') { this._advance(); tok = this._makeToken(TOKEN.OR, '||', startColumn); }
-                else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_OR_ASSIGN, '|=', startColumn); }
-                else { tok = this._makeToken(TOKEN.BITWISE_OR, '|', startColumn); }
-                break;
-            case '^':
-                if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_XOR_ASSIGN, '^=', startColumn); }
-                else { tok = this._makeToken(TOKEN.BITWISE_XOR, '^', startColumn); }
-                break;
-            case '~':
-                tok = this._makeToken(TOKEN.BITWISE_NOT, '~', startColumn);
-                break;
-			case '?':
-				if (this._peek() === '?') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NULLISH_ASSIGN, '??=', startColumn)) : this._makeToken(TOKEN.NULLISH_COALESCING, '??', startColumn); }
-				else if (this._peek() === '.') { this._advance(); tok = this._makeToken(TOKEN.OPTIONAL_CHAINING, '?.', startColumn); }
-				else { tok = this._makeToken(TOKEN.QUESTION, '?', startColumn); }
-				break;
-			case '.':
-				if (this._peek() === '.' && this.source[this.readPosition + 1] === '.') { this._advance(); this._advance(); tok = this._makeToken(TOKEN.DOTDOTDOT, '...', startColumn); }
-				else { tok = this._makeToken(TOKEN.DOT, '.', startColumn); }
-				break;
-			case '`': this.templateStack.push(true); return this._readTemplateHead();
-			case '{': tok = this._makeToken(TOKEN.LBRACE, '{', startColumn); break;
-			case '}': tok = this._makeToken(TOKEN.RBRACE, '}', startColumn); break;
-			case '(': tok = this._makeToken(TOKEN.LPAREN, '(', startColumn); break;
-			case ')': tok = this._makeToken(TOKEN.RPAREN, ')', startColumn); break;
-			case '[': tok = this._makeToken(TOKEN.LBRACKET, '[', startColumn); break;
-			case ']': tok = this._makeToken(TOKEN.RBRACKET, ']', startColumn); break;
-			case ',': tok = this._makeToken(TOKEN.COMMA, ',', startColumn); break;
-			case ';': tok = this._makeToken(TOKEN.SEMICOLON, ';', startColumn); break;
-			case ':': tok = this._makeToken(TOKEN.COLON, ':', startColumn); break;
-			case '"': case "'": return this._readString(c);
-			case '#': return this._readPrivateIdentifier();
+    switch (c) {
+        case '=':
+            if (this._peek() === '>') { this._advance(); tok = this._makeToken(TOKEN.ARROW, '=>', startColumn); }
+            else if (this._peek() === '=') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EQ_STRICT, '===', startColumn)) : this._makeToken(TOKEN.EQ, '==', startColumn); }
+            else { tok = this._makeToken(TOKEN.ASSIGN, '=', startColumn); }
+            break;
+        case '!':
+            if (this._peek() === '=') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NOT_EQ_STRICT, '!==', startColumn)) : this._makeToken(TOKEN.NOT_EQ, '!=', startColumn); }
+            else { tok = this._makeToken(TOKEN.BANG, '!', startColumn); }
+            break;
+        case '+':
+            if (this._peek() === '+') { this._advance(); tok = this._makeToken(TOKEN.INCREMENT, '++', startColumn); }
+            else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.PLUS_ASSIGN, '+=', startColumn); }
+            else { tok = this._makeToken(TOKEN.PLUS, '+', startColumn); }
+            break;
+        case '-':
+            if (this._peek() === '-') { this._advance(); tok = this._makeToken(TOKEN.DECREMENT, '--', startColumn); }
+            else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MINUS_ASSIGN, '-=', startColumn); }
+            else { tok = this._makeToken(TOKEN.MINUS, '-', startColumn); }
+            break;
+        case '*':
+            if (this._peek() === '*') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EXPONENT_ASSIGN, '**=', startColumn)) : this._makeToken(TOKEN.EXPONENT, '**', startColumn); }
+            else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.ASTERISK_ASSIGN, '*=', startColumn); }
+            else { tok = this._makeToken(TOKEN.ASTERISK, '*', startColumn); }
+            break;
+        case '/':
+            if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.SLASH_ASSIGN, '/=', startColumn); }
+            else { tok = this._makeToken(TOKEN.SLASH, '/', startColumn); }
+            break;
+        case '%':
+            if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MODULO_ASSIGN, '%=', startColumn); }
+            else { tok = this._makeToken(TOKEN.MODULO, '%', startColumn); }
+            break;
+        case '<':
+            if (this._peek() === '<') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.LEFT_SHIFT_ASSIGN, '<<=', startColumn)) : this._makeToken(TOKEN.LEFT_SHIFT, '<<', startColumn); }
+            else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.LTE, '<=', startColumn); }
+            else { tok = this._makeToken(TOKEN.LT, '<', startColumn); }
+            break;
+        case '>':
+            if (this._peek() === '>') { this._advance(); if (this._peek() === '>') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN, '>>>=', startColumn)) : this._makeToken(TOKEN.UNSIGNED_RIGHT_SHIFT, '>>>', startColumn); } else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.RIGHT_SHIFT_ASSIGN, '>>=', startColumn); } else { tok = this._makeToken(TOKEN.RIGHT_SHIFT, '>>', startColumn); } }
+            else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.GTE, '>=', startColumn); }
+            else { tok = this._makeToken(TOKEN.GT, '>', startColumn); }
+            break;
+        case '&':
+            if (this._peek() === '&') {
+                this._advance(); // consume first &
+                if (this._peek() === '=') {
+                    this._advance(); // consume =
+                    tok = this._makeToken(TOKEN.LOGICAL_AND_ASSIGN, '&&=', startColumn);
+                } else {
+                    tok = this._makeToken(TOKEN.AND, '&&', startColumn);
+                }
+            } else if (this._peek() === '=') {
+                this._advance();
+                tok = this._makeToken(TOKEN.BITWISE_AND_ASSIGN, '&=', startColumn);
+            } else {
+                tok = this._makeToken(TOKEN.BITWISE_AND, '&', startColumn);
+            }
+            break;
+        case '|':
+            if (this._peek() === '|') {
+                this._advance(); // consume first |
+                if (this._peek() === '=') {
+                    this._advance(); // consume =
+                    tok = this._makeToken(TOKEN.LOGICAL_OR_ASSIGN, '||=', startColumn);
+                } else {
+                    tok = this._makeToken(TOKEN.OR, '||', startColumn);
+                }
+            } else if (this._peek() === '=') {
+                this._advance();
+                tok = this._makeToken(TOKEN.BITWISE_OR_ASSIGN, '|=', startColumn);
+            } else {
+                tok = this._makeToken(TOKEN.BITWISE_OR, '|', startColumn);
+            }
+            break;
+        case '^':
+            if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_XOR_ASSIGN, '^=', startColumn); }
+            else { tok = this._makeToken(TOKEN.BITWISE_XOR, '^', startColumn); }
+            break;
+        case '~':
+            tok = this._makeToken(TOKEN.BITWISE_NOT, '~', startColumn);
+            break;
+        case '?':
+            if (this._peek() === '?') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NULLISH_ASSIGN, '??=', startColumn)) : this._makeToken(TOKEN.NULLISH_COALESCING, '??', startColumn); }
+            else if (this._peek() === '.') { this._advance(); tok = this._makeToken(TOKEN.OPTIONAL_CHAINING, '?.', startColumn); }
+            else { tok = this._makeToken(TOKEN.QUESTION, '?', startColumn); }
+            break;
+        case '.':
+            if (this._peek() === '.' && this.source[this.readPosition + 1] === '.') { this._advance(); this._advance(); tok = this._makeToken(TOKEN.DOTDOTDOT, '...', startColumn); }
+            else { tok = this._makeToken(TOKEN.DOT, '.', startColumn); }
+            break;
+        case '`': this.templateStack.push(true); return this._readTemplateHead();
+        case '{': tok = this._makeToken(TOKEN.LBRACE, '{', startColumn); break;
+        case '}': tok = this._makeToken(TOKEN.RBRACE, '}', startColumn); break;
+        case '(': tok = this._makeToken(TOKEN.LPAREN, '(', startColumn); break;
+        case ')': tok = this._makeToken(TOKEN.RPAREN, ')', startColumn); break;
+        case '[': tok = this._makeToken(TOKEN.LBRACKET, '[', startColumn); break;
+        case ']': tok = this._makeToken(TOKEN.RBRACKET, ']', startColumn); break;
+        case ',': tok = this._makeToken(TOKEN.COMMA, ',', startColumn); break;
+        case ';': tok = this._makeToken(TOKEN.SEMICOLON, ';', startColumn); break;
+        case ':': tok = this._makeToken(TOKEN.COLON, ':', startColumn); break;
+        case '"': case "'": return this._readString(c);
+        case '#': return this._readPrivateIdentifier();
 
-			default:
-				if (this._isLetter(c)) {
-					const ident = this._readIdentifier();
-					return this._makeToken(KEYWORDS[ident] || TOKEN.IDENT, ident, startColumn);
-				} else if (this._isDigit(c)) {
-					return this._makeToken(TOKEN.NUMBER, this._readNumber(), startColumn);
-				} else {
-					tok = this._makeToken(TOKEN.ILLEGAL, c, startColumn);
-				}
-		}
+        default:
+            if (this._isLetter(c)) {
+                const ident = this._readIdentifier();
+                return this._makeToken(KEYWORDS[ident] || TOKEN.IDENT, ident, startColumn);
+            } else if (this._isDigit(c)) {
+                return this._makeToken(TOKEN.NUMBER, this._readNumber(), startColumn);
+            } else {
+                tok = this._makeToken(TOKEN.ILLEGAL, c, startColumn);
+            }
+    }
 
-		this._advance();
-		return tok;
-	}
+    this._advance();
+    return tok;
+}
 
 	_readPrivateIdentifier() {
 		this._advance(); // Consume '#'
@@ -304,30 +315,65 @@ _skipWhitespace() {
 		return this.source.slice(p, this.position);
 	}
 
-	_readNumber() {
-		const p = this.position;
-		if (this.ch === '0' && this._peek() && 'xob'.includes(this._peek().toLowerCase())) {
-			this._advance();
-			this._advance();
-			while (this.ch !== null && this._isIdentifierChar(this.ch)) {
-				this._advance();
-			}
-		} else {
-			while (this.ch !== null && this._isDigit(this.ch)) {
-				this._advance();
-			}
-			if (this.ch === '.' && this._isDigit(this._peek())) {
-				this._advance();
-				while (this.ch !== null && this._isDigit(this.ch)) {
-					this._advance();
-				}
-			}
-		}
-		if (this.ch === 'n') {
-			this._advance();
-		}
-		return this.source.slice(p, this.position);
-	}
+	// B"H
+// In Lexer.js, replace the _readNumber method with this one.
+// This version adds support for numeric separators (e.g., 1_000_000)
+// to the existing logic for different number types.
+_readNumber() {
+    const p = this.position;
+    // Handle hex (0x), binary (0b), and octal (0o) literals
+    if (this.ch === '0' && this._peek() && 'xob'.includes(this._peek().toLowerCase())) {
+        this._advance(); // consume '0'
+        this._advance(); // consume 'x', 'o', or 'b'
+        // Loop through hex/binary digits, allowing underscores between them.
+        while (this.ch !== null) {
+            if (this._isIdentifierChar(this.ch)) { // isIdentifierChar is a decent proxy for hex/binary chars
+                this._advance();
+                if (this.ch === '_' && this._isIdentifierChar(this._peek())) {
+                    this._advance();
+                }
+            } else {
+                break;
+            }
+        }
+    } else {
+        // Handle standard decimal numbers
+        while (this.ch !== null) {
+            if (this._isDigit(this.ch)) {
+                this._advance();
+                // A separator is only valid if it's followed by another digit.
+                if (this.ch === '_' && this._isDigit(this._peek())) {
+                    this._advance(); // consume the separator
+                }
+            } else {
+                break;
+            }
+        }
+
+        // Handle the decimal part
+        if (this.ch === '.' && this._isDigit(this._peek())) {
+            this._advance(); // consume '.'
+            while (this.ch !== null) {
+                if (this._isDigit(this.ch)) {
+                    this._advance();
+                    // Separators can also be in the fractional part.
+                    if (this.ch === '_' && this._isDigit(this._peek())) {
+                        this._advance(); // consume the separator
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Handle BigInt suffix 'n'
+    if (this.ch === 'n') {
+        this._advance();
+    }
+    
+    return this.source.slice(p, this.position);
+}
 
 	_readString(quote) {
 		this._advance(); // consume opening quote
