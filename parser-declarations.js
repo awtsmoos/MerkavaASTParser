@@ -29,6 +29,9 @@ proto._parseDeclaration = function() {
         case TOKEN.FOR: return this._parseForStatement();
         case TOKEN.WHILE: return this._parseWhileStatement();
         case TOKEN.RETURN: return this._parseReturnStatement();
+        
+        case TOKEN.SWITCH: return this._parseSwitchStatement();
+        case TOKEN.BREAK: return this._parseBreakStatement();
 
         // Async Function Declaration check
         case TOKEN.ASYNC:
@@ -246,35 +249,187 @@ proto._parseVariableDeclarator = function(kind) {
 		return this._finishNode({ type: 'ClassDeclaration', id, superClass, body }, s);
 	};
 
-	proto._parseClassBody = function() {
-		const s = this._startNode();
-		this._expect(TOKEN.LBRACE);
-		const body = [];
-		while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
-			const method = this._parseMethodDefinition();
-			if(!method) {
-                this._advance(); // Skip bad token to avoid infinite loop
-                continue;
-            };
-			body.push(method);
-		}
-		this._expect(TOKEN.RBRACE);
-		return this._finishNode({ type: 'ClassBody', body }, s);
-	};
+	// REPLACE your old _parseClassBody with this one
+proto._parseClassBody = function() {
+    const s = this._startNode();
+    this._expect(TOKEN.LBRACE);
+    const body = [];
+    while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
+        // Use our new, more powerful function here
+        const element = this._parseClassElement();
+        if (element) {
+            body.push(element);
+        } else {
+             this._error("Invalid syntax in class body");
+             this._advance(); // Prevent infinite loop
+        }
+    }
+    this._expect(TOKEN.RBRACE);
+    return this._finishNode({ type: 'ClassBody', body }, s);
+};
+	
+	
+	
+	// ADD THIS NEW FUNCTION where the old _parseMethodDefinition was
+proto._parseClassElement = function() {
+    const s = this._startNode();
+    let isStatic = false;
+    let kind = 'method'; // Default to method
+    let isGenerator = false;
 
-	proto._parseMethodDefinition = function() {
-		const s = this._startNode();
-		let isStatic = false;
-		if (this.currToken.literal === 'static') {
-			isStatic = true;
-			this._advance();
+    if (this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'static') {
+        isStatic = true;
+        this._advance();
+    }
+
+    const isGetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'get';
+    const isSetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'set';
+
+    if (isGetter || isSetter) {
+        kind = isGetter ? 'get' : 'set';
+        this._advance();
+    }
+    
+    if (this._currTokenIs(TOKEN.ASTERISK)) {
+        isGenerator = true;
+        this._advance();
+    }
+
+    let key;
+    if (this._currTokenIs(TOKEN.PRIVATE_IDENT)) {
+         // We need to use the parser's private identifier helper
+         // This requires adding it from the expressions parser. For now, we'll create it directly.
+         const privateStart = this._startNode();
+         const privateName = this.currToken.literal.slice(1);
+         key = this._finishNode({ type: 'PrivateIdentifier', name: privateName }, privateStart);
+         this._advance();
+    } else {
+        key = this._parseIdentifier();
+    }
+    if (!key) return null;
+
+    // If it's NOT a method (i.e., not followed by a '('), it's a class field (PropertyDefinition)
+    if (!this._currTokenIs(TOKEN.LPAREN)) {
+        let value = null;
+        if (this._currTokenIs(TOKEN.ASSIGN)) {
+            this._advance();
+            value = this._parseExpression(PRECEDENCE.ASSIGNMENT);
+        }
+        this._consumeSemicolon();
+        return this._finishNode({ type: 'PropertyDefinition', key, value, static: isStatic, computed: false }, s);
+    }
+
+    // --- If we get here, it's a MethodDefinition ---
+    if (key.name === 'constructor' && !isGetter && !isSetter) {
+        kind = 'constructor';
+    }
+
+    // Parse the function part
+    this._expect(TOKEN.LPAREN);
+    const params = [];
+    if (!this._currTokenIs(TOKEN.RPAREN)) {
+        do {
+            params.push(this._parseBindingPattern());
+            if (!this._currTokenIs(TOKEN.COMMA)) break;
+            this._advance();
+        } while (true);
+    }
+    this._expect(TOKEN.RPAREN);
+    const body = this._parseBlockStatement();
+    if (!body) return null;
+
+    const func = {
+        type: 'FunctionExpression',
+        id: null,
+        params,
+        body,
+        async: false, 
+        generator: isGenerator
+    };
+
+    return this._finishNode({ type: 'MethodDefinition', key, value: func, kind, static: isStatic, computed: false }, s);
+};
+
+	// B"H --- UPGRADED Method Definition Parsing ---
+// B"H --- THIS IS THE DEFINITIVE, UNIFIED METHOD PARSER ---
+// Replace the old _parseMethodDefinition with this one.
+proto._parseMethodDefinition = function() {
+    const s = this._startNode();
+    let isStatic = false;
+    let kind = 'method';
+
+    // Check for static keyword first
+    if (this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'static') {
+        isStatic = true;
+        this._advance();
+    }
+
+    // Check for get/set keywords. This is a key part of the logic.
+    const isGetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'get';
+    const isSetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'set';
+
+    if (isGetter || isSetter) {
+        kind = isGetter ? 'get' : 'set';
+        this._advance();
+    }
+
+    // Now, parse the method's name.
+    const key = this._parseIdentifier();
+    if (!key) return null;
+
+    // The 'constructor' keyword is special and overrides the kind.
+    if (key.name === 'constructor' && !isGetter && !isSetter) {
+        kind = 'constructor';
+    }
+
+    // THIS IS THE CRITICAL FIX:
+    // We are now parsing the function part directly, NOT calling the old _parseFunction.
+    // This gives us the control we need.
+    this._expect(TOKEN.LPAREN);
+    const params = [];
+		if (!this._currTokenIs(TOKEN.RPAREN)) {
+			do {
+				const param = this._parseBindingPattern();
+				if (!param) return null;
+				params.push(param);
+                if (!this._currTokenIs(TOKEN.COMMA)) break;
+                this._advance();
+			} while (true);
 		}
-		const key = this._parseIdentifier(); 
-		if (!key) return null;
-		const value = this._parseFunction('expression');
-		if (!value) return null;
-		return this._finishNode({ type: 'MethodDefinition', key, value, kind: key.name === 'constructor' ? 'constructor' : 'method', 'static': isStatic }, s);
-	};
+    this._expect(TOKEN.RPAREN);
+    
+    const body = this._parseBlockStatement();
+    if (!body) return null;
+
+    // We build the FunctionExpression node manually here.
+    const value = {
+        type: 'FunctionExpression',
+        id: null,
+        params: params,
+        body: body,
+        async: false,
+        generator: false
+    };
+
+    // Add validation for getters and setters
+    if (kind === 'set' && value.params.length !== 1) {
+        this._error("Setter functions must have exactly one argument.");
+        return null;
+    }
+    if (kind === 'get' && value.params.length !== 0) {
+        this._error("Getter functions must have no arguments.");
+        return null;
+    }
+
+    return this._finishNode({ 
+        type: 'MethodDefinition', 
+        key: key, 
+        value: value, 
+        kind: kind, 
+        static: isStatic,
+        computed: false
+    }, s);
+};
 
 	// --- THIS IS THE NEW, CORRECT FUNCTION ---
 	proto._parseImportDeclaration = function() {

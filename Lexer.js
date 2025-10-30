@@ -60,6 +60,7 @@ class Lexer {
 
 	nextToken() {
 		this._guard();
+		this.hasLineTerminatorBefore = false;
 		
 		this._skipWhitespace();
 
@@ -134,6 +135,8 @@ class Lexer {
 			case ';': tok = this._makeToken(TOKEN.SEMICOLON, ';', startColumn); break;
 			case ':': tok = this._makeToken(TOKEN.COLON, ':', startColumn); break;
 			case '"': case "'": return this._readString(c);
+			case '#': return this._readPrivateIdentifier();
+			
 			default:
 				if (this._isLetter(c)) {
 					const ident = this._readIdentifier();
@@ -148,6 +151,18 @@ class Lexer {
 		this._advance();
 		return tok;
 	}
+	
+	
+	// Add this new function to Lexer.js
+_readPrivateIdentifier() {
+    this._advance(); // Consume '#'
+    const startColumn = this.column - 1;
+    const ident = this._readIdentifier();
+    if (!ident) {
+        return this._makeToken(TOKEN.ILLEGAL, '#', startColumn);
+    }
+    return this._makeToken(TOKEN.PRIVATE_IDENT, '#' + ident, startColumn);
+}
 
 	_skipWhitespace() {
 		while (this.ch !== null) {
@@ -186,11 +201,37 @@ class Lexer {
 		return this._readTemplatePart('TEMPLATE_HEAD');
 	}
 
+	// In Lexer.js
+
 	_readTemplateMiddleOrTail() {
 		this._guard();
 		this._advance(); // Consume '}'
-		const type = this.templateStack.length > 0 ? 'TEMPLATE_MIDDLE' : 'ILLEGAL';
-		return this._readTemplatePart(type);
+		this.templateStack.pop(); // <-- CRITICAL FIX #1: POP here. We are EXITING an expression.
+		return this._readTemplatePart('TEMPLATE_MIDDLE');
+	}
+	
+	_readTemplatePart(initialType) {
+		const p = this.position;
+		while (this.ch !== null && this.ch !== '`') {
+			this._guard(); // Guard the loop
+			if (this.ch === '$' && this._peek() === '{') {
+				const literal = this.source.slice(p, this.position);
+				this._advance(); // Consume '$'
+				this._advance(); // Consume '{'
+				this.templateStack.push(true); // <-- CRITICAL FIX #2: PUSH here. We are ENTERING an expression.
+				return this._makeToken(initialType, literal);
+			}
+			this._advance();
+		}
+
+		const literal = this.source.slice(p, this.position);
+		if (this.ch === '`') {
+			this.templateStack.pop();
+			this._advance(); // Consume '`'
+			return this._makeToken(TOKEN.TEMPLATE_TAIL, literal);
+		}
+		
+		return this._makeToken(TOKEN.ILLEGAL, `Unterminated template literal`);
 	}
 	
 	_readTemplatePart(initialType) {
@@ -225,11 +266,25 @@ class Lexer {
 		return this.source.slice(p, this.position);
 	}
 
+	// In Lexer.js
+
 	_readNumber() {
 		const p = this.position;
+		// Read the integer part
 		while (this.ch !== null && this._isDigit(this.ch)) {
 			this._advance();
 		}
+		
+		// Check for a decimal part
+		if (this.ch === '.' && this._isDigit(this._peek())) {
+			this._advance(); // Consume the '.'
+			
+			// Read the fractional part
+			while (this.ch !== null && this._isDigit(this.ch)) {
+				this._advance();
+			}
+		}
+
 		return this.source.slice(p, this.position);
 	}
 

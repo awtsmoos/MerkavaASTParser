@@ -68,38 +68,50 @@
 		return this._finishNode({ type: 'IfStatement', test, consequent, alternate }, s);
 	};
 
-	proto._parseForStatement = function() {
-		const s = this._startNode();
-		this._expect(TOKEN.FOR);
-		this._expect(TOKEN.LPAREN);
-		let init = null;
-		if (this._currTokenIs(TOKEN.LET) || this._currTokenIs(TOKEN.CONST) || this._currTokenIs(TOKEN.VAR)) {
-			init = this._parseVariableDeclaration();
-		} else if (!this._currTokenIs(TOKEN.SEMICOLON)) {
-			init = this._parseExpression(PRECEDENCE.LOWEST);
-		}
-		
-		// For...in and For...of
-		if (this._currTokenIs(TOKEN.IN) || (this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'of')) {
-            const isForOf = this.currToken.literal === 'of';
-			this._advance();
-			const right = this._parseExpression(PRECEDENCE.LOWEST);
-			this._expect(TOKEN.RPAREN);
-			const body = this._parseDeclaration();
-			if (!init || !right || !body) return null;
-			return this._finishNode({ type: isForOf ? 'ForOfStatement' : 'ForInStatement', left: init, right, body, await: false }, s);
-		}
+	// B"H --- CORRECTED For Statement Parsing ---
+proto._parseForStatement = function() {
+    const s = this._startNode();
+    this._expect(TOKEN.FOR);
+    this._expect(TOKEN.LPAREN);
+    let init = null;
 
-		// Standard C-style for loop
-		this._expect(TOKEN.SEMICOLON);
-		const test = this._currTokenIs(TOKEN.SEMICOLON) ? null : this._parseExpression(PRECEDENCE.LOWEST);
-		this._expect(TOKEN.SEMICOLON);
-		const update = this._currTokenIs(TOKEN.RPAREN) ? null : this._parseExpression(PRECEDENCE.LOWEST);
-		this._expect(TOKEN.RPAREN);
-		const body = this._parseDeclaration();
-		if (!body) return null;
-		return this._finishNode({ type: 'ForStatement', init, test, update, body }, s);
-	};
+    // This logic branch handles `for (let i = 0; ...)`
+    if (this._currTokenIs(TOKEN.LET) || this._currTokenIs(TOKEN.CONST) || this._currTokenIs(TOKEN.VAR)) {
+        init = this._parseVariableDeclaration(); 
+        // We DO NOT expect a semicolon here, because _parseVariableDeclaration consumed it.
+    
+    // This logic branch handles `for (i = 0; ...)` or `for ( ; ...)`
+    } else if (!this._currTokenIs(TOKEN.SEMICOLON)) {
+        init = this._parseExpression(PRECEDENCE.LOWEST);
+        // An expression MUST be followed by a semicolon.
+        this._expect(TOKEN.SEMICOLON);
+    } else {
+        // This handles the empty init case `for (;;)`
+        this._expect(TOKEN.SEMICOLON);
+    }
+    
+    // --- The logic for for...in and for...of was also problematic here ---
+    // It is simpler and more correct to check for it *after* parsing the initializer.
+    if (this._currTokenIs(TOKEN.IN) || (this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'of')) {
+        const isForOf = this.currToken.literal === 'of';
+        this._advance();
+        const right = this._parseExpression(PRECEDENCE.LOWEST);
+        this._expect(TOKEN.RPAREN);
+        const body = this._parseDeclaration();
+        if (!init || !right || !body) return null;
+        return this._finishNode({ type: isForOf ? 'ForOfStatement' : 'ForInStatement', left: init, right, body, await: false }, s);
+    }
+
+    // Standard C-style for loop continues from here.
+    // We are now past the first semicolon.
+    const test = this._currTokenIs(TOKEN.SEMICOLON) ? null : this._parseExpression(PRECEDENCE.LOWEST);
+    this._expect(TOKEN.SEMICOLON);
+    const update = this._currTokenIs(TOKEN.RPAREN) ? null : this._parseExpression(PRECEDENCE.LOWEST);
+    this._expect(TOKEN.RPAREN);
+    const body = this._parseDeclaration();
+    if (!body) return null;
+    return this._finishNode({ type: 'ForStatement', init, test, update, body }, s);
+};
 
 	proto._parseWhileStatement = function() {
 		const s = this._startNode();
@@ -129,5 +141,68 @@
 		
 		return this._finishNode({ type: 'ReturnStatement', argument }, s);
 	};
+	
+	
+	// B"H --- Add these to the bottom of parser-statements.js ---
+
+    proto._parseSwitchStatement = function() {
+        const s = this._startNode();
+        this._expect(TOKEN.SWITCH);
+        this._expect(TOKEN.LPAREN);
+        const discriminant = this._parseExpression(PRECEDENCE.LOWEST);
+        this._expect(TOKEN.RPAREN);
+        this._expect(TOKEN.LBRACE);
+
+        const cases = [];
+        while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
+            const caseClause = this._parseSwitchCase();
+            if (caseClause) {
+                cases.push(caseClause);
+            }
+        }
+
+        this._expect(TOKEN.RBRACE);
+        return this._finishNode({ type: 'SwitchStatement', discriminant, cases }, s);
+    };
+
+    proto._parseSwitchCase = function() {
+        const s = this._startNode();
+        let test = null;
+
+        if (this._currTokenIs(TOKEN.CASE)) {
+            this._advance(); // Consume 'case'
+            test = this._parseExpression(PRECEDENCE.LOWEST);
+        } else if (this._currTokenIs(TOKEN.DEFAULT)) {
+            this._advance(); // Consume 'default'
+            // test remains null
+        } else {
+            this._error("Expected 'case' or 'default' keyword.");
+            return null;
+        }
+
+        this._expect(TOKEN.COLON);
+
+        const consequent = [];
+        // Loop until we hit the next case, default, or the end of the switch block
+        while (!this._currTokenIs(TOKEN.RBRACE) && 
+               !this._currTokenIs(TOKEN.CASE) &&
+               !this._currTokenIs(TOKEN.DEFAULT) &&
+               !this._currTokenIs(TOKEN.EOF)) {
+            const stmt = this._parseDeclaration();
+            if (stmt) {
+                consequent.push(stmt);
+            }
+        }
+
+        return this._finishNode({ type: 'SwitchCase', test, consequent }, s);
+    };
+
+    proto._parseBreakStatement = function() {
+        const s = this._startNode();
+        this._advance(); // Consume 'break'
+        // According to ESTree spec, break statements can have a label, but we'll keep it simple.
+        this._consumeSemicolon();
+        return this._finishNode({ type: 'BreakStatement', label: null }, s);
+    };
 
 })(MerkabahParser.prototype);
