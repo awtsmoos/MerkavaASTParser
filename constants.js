@@ -3,7 +3,28 @@
 //constants.js
 const TOKEN = {
 
-    EOF: 'EOF', ILLEGAL: 'ILLEGAL',
+
+
+    EOF: 'EOF',
+    
+    VOID: 'VOID',
+    
+    BITWISE_AND: '&',
+    BITWISE_OR: '|',
+    BITWISE_XOR: '^',
+    BITWISE_NOT: '~',
+    LEFT_SHIFT: '<<',
+    RIGHT_SHIFT: '>>',
+    UNSIGNED_RIGHT_SHIFT: '>>>',
+    BITWISE_AND_ASSIGN: '&=',
+    BITWISE_OR_ASSIGN: '|=',
+    BITWISE_XOR_ASSIGN: '^=',
+    LEFT_SHIFT_ASSIGN: '<<=',
+    RIGHT_SHIFT_ASSIGN: '>>=',
+    UNSIGNED_RIGHT_SHIFT_ASSIGN: '>>>=',
+    
+    
+     ILLEGAL: 'ILLEGAL',
     
     MODULO: 'MODULO', // Add this
 	
@@ -63,8 +84,14 @@ const KEYWORDS = {
     'try': TOKEN.TRY, 'catch': TOKEN.CATCH, 'finally': TOKEN.FINALLY, 'throw': TOKEN.THROW,
     
     
+    'void': TOKEN.VOID,
+    
+    
     'with': TOKEN.WITH, //the final frontier
 };
+
+// B"H
+// --- Start of Replacement for the PRECEDENCE object in constants.js ---
 
 const PRECEDENCE = {
     LOWEST: 0,
@@ -74,18 +101,25 @@ const PRECEDENCE = {
     NULLISH: 4,
     OR: 5,
     AND: 6,
-    EQUALITY: 7,
-    COMPARISON: 8,
-    SUM: 9,
-    PRODUCT: 10,
-    EXPONENT: 11,
-    PREFIX: 12,
-    POSTFIX: 13,
-    // --- NEW HIERARCHY OF POWER ---
-    CALL: 14,         // myFunction(X)
-    MEMBER: 15,       // object.prop or object[prop]
-    NEW: 16,          // new (handled as a prefix, but its operand has high precedence)
+    // --- NEW LEVELS ADDED ---
+    BITWISE_OR: 7,
+    BITWISE_XOR: 8,
+    BITWISE_AND: 9,
+    // --- END NEW LEVELS ---
+    EQUALITY: 10,                 // Renumbered from 7
+    COMPARISON: 11,               // Renumbered from 8
+    SHIFT: 12,                    // --- NEW LEVEL ADDED ---
+    SUM: 13,                      // Renumbered from 9
+    PRODUCT: 14,                  // Renumbered from 10
+    EXPONENT: 15,                 // Renumbered from 11
+    PREFIX: 16,                   // Renumbered from 12
+    POSTFIX: 17,                  // Renumbered from 13
+    CALL: 18,                     // Renumbered from 14
+    MEMBER: 19,                   // Renumbered from 15
+    NEW: 20,                      // Renumbered from 16
 };
+
+// --- End of Replacement ---
 
 const PRECEDENCES = {
     [TOKEN.COMMA]: PRECEDENCE.SEQUENCE,
@@ -101,6 +135,15 @@ const PRECEDENCES = {
     [TOKEN.NULLISH_COALESCING]: PRECEDENCE.NULLISH,
     [TOKEN.OR]: PRECEDENCE.OR,
     [TOKEN.AND]: PRECEDENCE.AND,
+    
+    
+    [TOKEN.BITWISE_OR]: PRECEDENCE.BITWISE_OR,
+    [TOKEN.BITWISE_XOR]: PRECEDENCE.BITWISE_XOR,
+    [TOKEN.BITWISE_AND]: PRECEDENCE.BITWISE_AND,
+    [TOKEN.LEFT_SHIFT]: PRECEDENCE.SHIFT,
+    [TOKEN.RIGHT_SHIFT]: PRECEDENCE.SHIFT,
+    [TOKEN.UNSIGNED_RIGHT_SHIFT]: PRECEDENCE.SHIFT,
+    
     [TOKEN.EQ]: PRECEDENCE.EQUALITY, [TOKEN.EQ_STRICT]: PRECEDENCE.EQUALITY,
     [TOKEN.NOT_EQ]: PRECEDENCE.EQUALITY, [TOKEN.NOT_EQ_STRICT]: PRECEDENCE.EQUALITY,
     [TOKEN.LT]: PRECEDENCE.COMPARISON, [TOKEN.GT]: PRECEDENCE.COMPARISON,

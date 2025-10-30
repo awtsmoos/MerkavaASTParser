@@ -78,6 +78,9 @@ class Lexer {
 		const c = this.ch;
 		let tok;
 
+		// B"H
+	
+
 		switch (c) {
 			case '=':
 				if (this._peek() === '>') { this._advance(); tok = this._makeToken(TOKEN.ARROW, '=>', startColumn); }
@@ -111,10 +114,33 @@ class Lexer {
 	            if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.MODULO_ASSIGN, '%=', startColumn); }
 	            else { tok = this._makeToken(TOKEN.MODULO, '%', startColumn); }
 	            break;
-			case '<': tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.LTE, '<=', startColumn)) : this._makeToken(TOKEN.LT, '<', startColumn); break;
-			case '>': tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.GTE, '>=', startColumn)) : this._makeToken(TOKEN.GT, '>', startColumn); break;
-			case '&': tok = this._peek() === '&' ? (this._advance(), this._makeToken(TOKEN.AND, '&&', startColumn)) : this._makeToken(TOKEN.ILLEGAL, '&', startColumn); break;
-			case '|': tok = this._peek() === '|' ? (this._advance(), this._makeToken(TOKEN.OR, '||', startColumn)) : this._makeToken(TOKEN.ILLEGAL, '|', startColumn); break;
+            case '<':
+                if (this._peek() === '<') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.LEFT_SHIFT_ASSIGN, '<<=', startColumn)) : this._makeToken(TOKEN.LEFT_SHIFT, '<<', startColumn); }
+                else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.LTE, '<=', startColumn); }
+                else { tok = this._makeToken(TOKEN.LT, '<', startColumn); }
+                break;
+            case '>':
+                if (this._peek() === '>') { this._advance(); if (this._peek() === '>') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN, '>>>=', startColumn)) : this._makeToken(TOKEN.UNSIGNED_RIGHT_SHIFT, '>>>', startColumn); } else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.RIGHT_SHIFT_ASSIGN, '>>=', startColumn); } else { tok = this._makeToken(TOKEN.RIGHT_SHIFT, '>>', startColumn); } }
+                else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.GTE, '>=', startColumn); }
+                else { tok = this._makeToken(TOKEN.GT, '>', startColumn); }
+                break;
+            case '&':
+                if (this._peek() === '&') { this._advance(); tok = this._makeToken(TOKEN.AND, '&&', startColumn); }
+                else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_AND_ASSIGN, '&=', startColumn); }
+                else { tok = this._makeToken(TOKEN.BITWISE_AND, '&', startColumn); }
+                break;
+            case '|':
+                if (this._peek() === '|') { this._advance(); tok = this._makeToken(TOKEN.OR, '||', startColumn); }
+                else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_OR_ASSIGN, '|=', startColumn); }
+                else { tok = this._makeToken(TOKEN.BITWISE_OR, '|', startColumn); }
+                break;
+            case '^':
+                if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_XOR_ASSIGN, '^=', startColumn); }
+                else { tok = this._makeToken(TOKEN.BITWISE_XOR, '^', startColumn); }
+                break;
+            case '~':
+                tok = this._makeToken(TOKEN.BITWISE_NOT, '~', startColumn);
+                break;
 			case '?':
 				if (this._peek() === '?') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.NULLISH_ASSIGN, '??=', startColumn)) : this._makeToken(TOKEN.NULLISH_COALESCING, '??', startColumn); }
 				else if (this._peek() === '.') { this._advance(); tok = this._makeToken(TOKEN.OPTIONAL_CHAINING, '?.', startColumn); }
@@ -147,6 +173,7 @@ class Lexer {
 					tok = this._makeToken(TOKEN.ILLEGAL, c, startColumn);
 				}
 		}
+
 
 		this._advance();
 		return tok;
