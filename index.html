@@ -111,6 +111,102 @@ export default class UltimateConfigurator {
     
     </script>
     
+    <script type="Awtsmoos" id="makor2">
+    
+    // B"H --- The Keter Test: The Crown of Emanations ---
+// A script designed to stress-test the deepest levels of a JS parser's consciousness.
+
+// 1. Stress Point: Extending an Immediately-Invoked Class Expression.
+// The parser must evaluate the expression `(class extends Array {...})` before assigning it as the superclass.
+export default class TranscendentalReducer extends (class ChaosMatrix extends Array {
+    // 2. Stress Point: Static initialization block, a newer ES feature.
+    static {
+        // Must parse dynamic import() as an expression, and handle top-level await's cousin.
+        this.dynamicModule = import('https://some.module/path.js');
+    }
+    constructor(...args) { super(...(args.length ? args : [undefined])); }
+}) {
+    // 3. Stress Point: Private static field with a complex initializer using BigInt and RegExp.
+    static #SEED = 1234567890123456789012345678901234567890n / BigInt(0o777);
+    static #validator = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/gimsuy;
+
+    // 4. Stress Point: Private instance fields and a getter/setter for a COMPUTED private field.
+    #internalState;
+    #computedPrivate = Symbol('secret');
+    get [this.#computedPrivate]() { return this.#internalState; }
+    set [this.#computedPrivate](val) { this.#internalState = val; }
+
+    // 5. Stress Point: The ultimate constructor destructuring.
+    // Deeply nested, aliased, with default values, and rest properties.
+    constructor({
+        id,
+        metadata: { timestamp, tags: [firstTag, ...otherTags] = [] },
+        config: { retries: retryCount = 3, params: { a: alpha = 1, b: beta = 2 } = {} }
+    } = {}) {
+        // 6. Stress Point: `super()` call with a ternary expression. `new.target` meta-property.
+        super(id, new.target.name === 'TranscendentalReducer' ? 'VALID' : 'INVALID');
+        this.#internalState = { timestamp, tags: { firstTag, otherTags }, retryCount, alpha, beta };
+    }
+
+    // 7. Stress Point: An async GENERATOR method.
+    async * [Symbol.asyncIterator]() {
+        let loopCount = 0;
+        // 8. Stress Point: A labeled do-while loop.
+        mainLoop:
+        do {
+            // 9. Stress Point: `for await...of` loop with DESTRUCTURING and default BigInt values.
+            for await (const [{ prop: renamed = 999n }, ...rest] of this.#sourceGenerator()) {
+                if (!renamed) break mainLoop; // Test `break` with a label.
+                
+                // 10. Stress Point: Tagged template literal inside a nested ternary.
+                const processed = TranscendentalReducer.#tagFn `Value: ${
+                    rest.length > 0 ? rest[0]?.value ?? 'fallback' : 'empty'
+                }`;
+
+                // 11. Stress Point: Delegated yield to another async generator.
+                yield* this.#processChunk({ renamed, processed, seed: TranscendentalReducer.#SEED });
+            }
+        } while (loopCount++ < this.#internalState.retryCount);
+    }
+    
+    // 12. Stress Point: A simple static method for the tagged template literal.
+    static #tagFn(strings, ...values) {
+        return strings[0] + String(values[0]).toUpperCase();
+    }
+    
+    // Helper async generator.
+    async * #sourceGenerator() {
+        yield [{ prop: 'data1' }, { value: 100 }];
+        yield [{}]; // Yield an object without the 'prop' to test the default value.
+    }
+    
+    // Another helper async generator.
+    async * #processChunk(chunk) {
+        await new Promise(r => setTimeout(r, 10));
+        yield chunk;
+    }
+}
+
+// 13. Stress Point: Immediately-invoked async function to run the test.
+(async () => {
+    try {
+        const instance = new TranscendentalReducer({
+            id: 'keter-01',
+            metadata: { timestamp: Date.now(), tags: ['a', 'b', 'c'] },
+            config: { retries: 2, params: { a: 5 } }
+        });
+
+        for await (const finalChunk of instance) {
+            console.log('Final Chunk:', finalChunk);
+        }
+    } catch (e) {
+        console.error('The Keter Test Failed:', e);
+    }
+})();
+    
+    
+    </script>
+    
     <!-- Load scripts in the correct, required order -->
     <script src="constants.js"></script>
     <script src="Lexer.js"></script>
@@ -125,7 +221,7 @@ export default class UltimateConfigurator {
     
    <!-- In index.html -->
 <script>
-var makor=document. getElementById("makor")
+var makor=document. getElementById("makor2")
     document.addEventListener('DOMContentLoaded', () => {
         const jsInput = document.getElementById('js-input');
         const astOutput = document.getElementById('ast-output');

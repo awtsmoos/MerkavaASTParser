@@ -64,6 +64,9 @@
 				
 				p[TOKEN.DOTDOTDOT] = this._parseSpreadElement;
 				
+				
+				p[TOKEN.IMPORT] = this._parseImportExpression;
+				
 			const binary = l => this
 				._parseBinaryExpression(
 					l);
@@ -1063,6 +1066,33 @@ proto._convertExpressionToPattern = function(node) {
             return null;
     }
 };
+
+
+
+
+
+// B"H 
+
+proto._parseImportExpression = function() {
+    const s = this._startNode();
+    this._advance(); // Consume the 'import' keyword.
+
+    // A dynamic import must be a function call.
+    if (!this._currTokenIs(TOKEN.LPAREN)) {
+        this._error("Expected '(' after import for a dynamic import expression.");
+        return null;
+    }
+    this._advance(); // Consume '('
+
+    // The argument to import() is the module source, which is itself an expression.
+    const source = this._parseExpression(PRECEDENCE.LOWEST);
+
+    this._expect(TOKEN.RPAREN); // Consume ')'
+
+    // According to the ESTree spec, the node type is 'ImportExpression'.
+    return this._finishNode({ type: 'ImportExpression', source: source }, s);
+};
+
 
 
 })(MerkabahParser
