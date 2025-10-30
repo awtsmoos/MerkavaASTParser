@@ -4,34 +4,46 @@ var times=0
 var max=300
 	proto.registerDeclarationParsers = function() { /* No registration needed */ };
 
-	proto._parseDeclaration = function() {
-		if(times++>max){
-		throw "maxed"
-		
-		}
-		if (this.panicMode) {
-		throw "error"
-		return null;
-		}
-		switch (this.currToken.type) {
-			case TOKEN.EXPORT: return this._parseExportDeclaration();
-			case TOKEN.IMPORT: return this._parseImportDeclaration();
-			case TOKEN.FUNCTION: return this._parseFunction('declaration');
-			case TOKEN.CLASS: return this._parseClassDeclaration();
-			case TOKEN.LET:
-			case TOKEN.CONST:
-			case TOKEN.VAR:
-				return this._parseVariableDeclaration();
-			case TOKEN.ASYNC:
-				if (this._peekTokenIs(TOKEN.FUNCTION)) {
-					this._advance();
-					return this._parseFunction('declaration', true);
-				}
-				return this._parseStatement();
-			default:
-				return this._parseStatement();
-		}
-	};
+	// B"H --- In parser-declarations.js ---
+
+// REPLACE your _parseDeclaration function with this one.
+proto._parseDeclaration = function() {
+    // This function is now the single source of truth for deciding
+    // what kind of statement or declaration to parse.
+    if (this.panicMode) return null;
+
+    switch (this.currToken.type) {
+        // Declarations
+        case TOKEN.EXPORT: return this._parseExportDeclaration();
+        case TOKEN.IMPORT: return this._parseImportDeclaration();
+        case TOKEN.FUNCTION: return this._parseFunction('declaration');
+        case TOKEN.CLASS: return this._parseClassDeclaration();
+        case TOKEN.LET:
+        case TOKEN.CONST:
+        case TOKEN.VAR:
+            return this._parseVariableDeclaration();
+        
+        // Statements (Moved from the old _parseStatement function)
+        case TOKEN.LBRACE: return this._parseBlockStatement();
+        case TOKEN.IF: return this._parseIfStatement();
+        case TOKEN.FOR: return this._parseForStatement();
+        case TOKEN.WHILE: return this._parseWhileStatement();
+        case TOKEN.RETURN: return this._parseReturnStatement();
+
+        // Async Function Declaration check
+        case TOKEN.ASYNC:
+            if (this._peekTokenIs(TOKEN.FUNCTION)) {
+                this._advance();
+                return this._parseFunction('declaration', true);
+            }
+            // Fall through to default for async expressions
+            
+        // Default Case
+        default:
+            // If it's none of the above, it must be an expression statement.
+            return this._parseExpressionStatement();
+    }
+};
     
 
 	proto._parseBindingPattern = function() {

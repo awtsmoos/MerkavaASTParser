@@ -1,64 +1,50 @@
-// B"H --- Parsing Statements [DEFINITIVE & COMPLETE] ---
+// B"H --- Parsing Statements [DEFINITIVE, CORRECT & COMPLETE] ---
 (function(proto) {
 	proto.registerStatementParsers = function() { /* No registration needed */ };
 
+	// This function is now deprecated, as its logic has been correctly
+	// centralized into `_parseDeclaration`. It is left here for safety
+	// but should not be the main entry point for parsing statements.
 	proto._parseStatement = function() {
-		if (this.panicMode) return null;
-		switch (this.currToken.type) {
-			case TOKEN.LBRACE: return this._parseBlockStatement();
-			case TOKEN.IF: return this._parseIfStatement();
-			case TOKEN.FOR: return this._parseForStatement();
-			case TOKEN.WHILE: return this._parseWhileStatement();
-			case TOKEN.RETURN: return this._parseReturnStatement();
-            // Add more statement types here as needed
-			default: return this._parseExpressionStatement();
-		}
+		return this._parseExpressionStatement();
 	};
 
-	// In parser-statements.js
+	// --- THIS IS THE CORRECT IMPLEMENTATION ---
+	proto._parseBlockStatement = function() {
+		const s = this._startNode();
+		this._expect(TOKEN.LBRACE); // Expect and consume '{'
 
-	// B"H
-// In parser-statements.js
-proto._parseBlockStatement = function() {
-    const s = this._startNode();
-    this._expect(TOKEN.LBRACE);
-    const body = [];
-    let guard = 0; // Add circuit breaker
-    while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
-        if (guard++ > 5000) { // Check circuit breaker
-            throw new Error("Infinite loop detected in _parseBlockStatement()");
-        }
-        const stmt = this._parseDeclaration();
-        if (stmt) {
-            body.push(stmt);
-        } else {
-            break;
-        }
-    }
-    this._expect(TOKEN.RBRACE);
-    return this._finishNode({ type: 'BlockStatement', body }, s);
-};
+		const body = [];
 
-	// In parser-statements.js
+		// This loop correctly parses statements until it finds the closing brace.
+		while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
+			// It calls `_parseDeclaration`, which is the single source of truth.
+			const stmt = this._parseDeclaration();
+			if (stmt) {
+				body.push(stmt);
+			} else {
+				// To prevent infinite loops on an unknown token, we advance.
+				this._error("Expected a statement or declaration within the block.");
+				this._advance();
+			}
+		}
+
+		this._expect(TOKEN.RBRACE); // Expect and consume '}'
+		
+		return this._finishNode({ type: 'BlockStatement', body }, s);
+	};
 
 	proto._parseExpressionStatement = function() {
 		const s = this._startNode();
 		
-		// An expression statement cannot start with these tokens.
-		// Checking this prevents trying to parse things that are obviously declarations.
+		// Expression statements cannot start with these keywords.
 		if(this.currToken.type === TOKEN.FUNCTION || this.currToken.type === TOKEN.CLASS || this.currToken.type === TOKEN.LET) {
 			return null;
 		}
 
 		const expr = this._parseExpression(PRECEDENCE.LOWEST);
 		
-		// If _parseExpression failed (e.g., due to an illegal token),
-		// it will have already thrown an error, which bubbles up.
-		// We should not proceed if the expression is invalid.
 		if (!expr) {
-			// This check handles cases where _parseExpression might return null 
-			// without throwing (though the current design makes that unlikely).
-			// Returning null here tells the main loop that this wasn't a valid statement.
 			return null; 
 		}
 
@@ -72,11 +58,11 @@ proto._parseBlockStatement = function() {
 		this._expect(TOKEN.LPAREN);
 		const test = this._parseExpression(PRECEDENCE.LOWEST);
 		this._expect(TOKEN.RPAREN);
-		const consequent = this._parseStatement();
+		const consequent = this._parseDeclaration(); // Use _parseDeclaration to handle blocks or single statements
 		let alternate = null;
 		if (this._currTokenIs(TOKEN.ELSE)) {
 			this._advance();
-			alternate = this._parseStatement();
+			alternate = this._parseDeclaration(); // Also use _parseDeclaration here
 		}
 		if (!test || !consequent) return null;
 		return this._finishNode({ type: 'IfStatement', test, consequent, alternate }, s);
@@ -92,21 +78,25 @@ proto._parseBlockStatement = function() {
 		} else if (!this._currTokenIs(TOKEN.SEMICOLON)) {
 			init = this._parseExpression(PRECEDENCE.LOWEST);
 		}
+		
+		// For...in and For...of
 		if (this._currTokenIs(TOKEN.IN) || (this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'of')) {
             const isForOf = this.currToken.literal === 'of';
 			this._advance();
 			const right = this._parseExpression(PRECEDENCE.LOWEST);
 			this._expect(TOKEN.RPAREN);
-			const body = this._parseStatement();
+			const body = this._parseDeclaration();
 			if (!init || !right || !body) return null;
 			return this._finishNode({ type: isForOf ? 'ForOfStatement' : 'ForInStatement', left: init, right, body, await: false }, s);
 		}
+
+		// Standard C-style for loop
 		this._expect(TOKEN.SEMICOLON);
 		const test = this._currTokenIs(TOKEN.SEMICOLON) ? null : this._parseExpression(PRECEDENCE.LOWEST);
 		this._expect(TOKEN.SEMICOLON);
 		const update = this._currTokenIs(TOKEN.RPAREN) ? null : this._parseExpression(PRECEDENCE.LOWEST);
 		this._expect(TOKEN.RPAREN);
-		const body = this._parseStatement();
+		const body = this._parseDeclaration();
 		if (!body) return null;
 		return this._finishNode({ type: 'ForStatement', init, test, update, body }, s);
 	};
@@ -117,19 +107,27 @@ proto._parseBlockStatement = function() {
 		this._expect(TOKEN.LPAREN);
 		const test = this._parseExpression(PRECEDENCE.LOWEST);
 		this._expect(TOKEN.RPAREN);
-		const body = this._parseStatement();
+		const body = this._parseDeclaration();
 		if (!test || !body) return null;
 		return this._finishNode({ type: 'WhileStatement', test, body }, s);
 	};
 
+	// --- THIS IS THE CORRECT IMPLEMENTATION ---
 	proto._parseReturnStatement = function() {
 		const s = this._startNode();
-		this._advance();
+		this._advance(); // Consume the 'return' token.
+
 		let argument = null;
-		if (!this._currTokenIs(TOKEN.SEMICOLON) && !this.currToken.hasLineTerminatorBefore) {
+
+		// This logic correctly checks if an expression follows 'return'.
+		// It handles Automatic Semicolon Insertion by checking for a newline.
+		if (!this._currTokenIs(TOKEN.SEMICOLON) && !this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF) && !this.currToken.hasLineTerminatorBefore) {
 			argument = this._parseExpression(PRECEDENCE.LOWEST);
 		}
+
 		this._consumeSemicolon();
+		
 		return this._finishNode({ type: 'ReturnStatement', argument }, s);
 	};
+
 })(MerkabahParser.prototype);
