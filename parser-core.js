@@ -29,6 +29,10 @@ class MerkabahParser {
 		this.currToken = this.peekToken;
 		this.peekToken = this.l.nextToken();
 	}
+	
+	_peekTokenIs(t) {
+        return this.peekToken.type === t;
+    }
 
 	_currTokenIs(t) { 
 	if(time++>max) throw "stoped curr";
