@@ -11,6 +11,8 @@ class Lexer {
 		this.column = 0;
 		this.hasLineTerminatorBefore = false;
 		this.templateStack = [];
+		this.comments = []; 
+		this.braceNestingLevel = 0;
 		this.op_count = 0;
 		this.max_ops = 25000;
 		this._advance();
@@ -63,9 +65,8 @@ class Lexer {
 	// -------------------------------------------------------------------------
 	// --- THE SINGLE, CORRECT, AND FINAL _skipWhitespace METHOD ---
 	// -------------------------------------------------------------------------
-// B"H 
-//--- THE DEFINITIVE AND FINAL _skipWhitespace METHOD ---
-
+// B"H
+// In Lexer.js, replace the entire _skipWhitespace method with this one.
 _skipWhitespace() {
     while (this.ch !== null) {
         this._guard();
@@ -80,11 +81,45 @@ _skipWhitespace() {
             this.line++;
             this.column = 0;
 
+        // --- MODIFICATION FOR SINGLE-LINE COMMENTS ---
         } else if (this.ch === '/' && this._peek() === '/') {
-            while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
+            const startPos = this.position;
+            const startLine = this.line;
+            const startCol = this.column;
+            
+            this._advance(); // Consume /
+            this._advance(); // Consume /
 
+            const commentStart = this.position;
+            while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) {
+                this._advance();
+            }
+            const commentEnd = this.position;
+            const value = this.source.slice(commentStart, commentEnd);
+
+            // Add the found comment to our new array
+            this.comments.push({
+                type: "Line",
+                value: " " + value, // ESTree spec often includes leading space
+                start: startPos,
+                end: commentEnd,
+                loc: {
+                    start: { line: startLine, column: startCol },
+                    end: { line: this.line, column: this.column }
+                }
+            });
+        // --- END OF MODIFICATION ---
+        
+        // --- MODIFICATION FOR MULTI-LINE COMMENTS ---
         } else if (this.ch === '/' && this._peek() === '*') {
-            this._advance(); this._advance();
+            const startPos = this.position;
+            const startLine = this.line;
+            const startCol = this.column;
+
+            this._advance(); // Consume /
+            this._advance(); // Consume *
+
+            const commentStart = this.position;
             while (this.ch !== null && (this.ch !== '*' || this._peek() !== '/')) {
                 if ('\n\r'.includes(this.ch)) {
                     this.hasLineTerminatorBefore = true;
@@ -94,11 +129,26 @@ _skipWhitespace() {
                 }
                 this._advance();
             }
-            if (this.ch !== null) { this._advance(); this._advance(); }
+            const commentEnd = this.position;
+            const value = this.source.slice(commentStart, commentEnd);
+            
+            if (this.ch !== null) {
+                this._advance(); // Consume *
+                this._advance(); // Consume /
+            }
 
-        // --- THE FIX IS HERE ---
-        // Both HTML-style comments are now correctly guarded by the hasLineTerminatorBefore flag.
-        // This ensures they are only treated as comments at the start of a line.
+            // Add the found comment to our new array
+             this.comments.push({
+                type: "Block",
+                value: value,
+                start: startPos,
+                end: commentEnd + 2, // account for */
+                loc: {
+                    start: { line: startLine, column: startCol },
+                    end: { line: this.line, column: this.column }
+                }
+            });
+        // --- END OF MODIFICATION ---
 
         } else if (this.hasLineTerminatorBefore && this.ch === '<' && this._peek() === '!' && this.source.substring(this.position, this.position + 4) === '<!--') {
             while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
@@ -106,10 +156,7 @@ _skipWhitespace() {
         } else if (this.hasLineTerminatorBefore && this.ch === '-' && this._peek() === '-' && this.source.substring(this.position, this.position + 3) === '-->') {
             while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
         
-        // --- END OF FIX ---
-
         } else {
-            // If it's not whitespace or a comment, it's a token.
             break;
         }
     }
@@ -119,9 +166,8 @@ _skipWhitespace() {
 	// -------------------------------------------------------------------------
 
 
-	// B"H
-// In Lexer.js, replace the nextToken method with this one.
-// This version adds support for the logical assignment operators '&&=' and '||='.
+// B"H
+// In Lexer.js, replace the ENTIRE nextToken method with this final, complete, and correct version.
 nextToken() {
     this._guard();
     this.hasLineTerminatorBefore = false;
@@ -134,14 +180,29 @@ nextToken() {
         return this._makeToken(TOKEN.EOF, '', startColumn, startLine);
     }
 
-    if (this.templateStack.length > 0 && this.ch === '}') {
-        return this._readTemplateMiddleOrTail();
-    }
-
     const c = this.ch;
     let tok;
 
     switch (c) {
+        // --- CORRECT BRACE-COUNTING LOGIC ---
+        case '{':
+            if (this.braceNestingLevel > 0) this.braceNestingLevel++;
+            tok = this._makeToken(TOKEN.LBRACE, '{', startColumn);
+            break;
+        case '}':
+            if (this.braceNestingLevel > 0) {
+                this.braceNestingLevel--;
+                if (this.braceNestingLevel === 0) {
+                    this.templateStack.pop();
+                    this._advance(); // Consume the '}'
+                    return this._readTemplatePart('TEMPLATE_MIDDLE'); // Switch to template mode
+                }
+            }
+            tok = this._makeToken(TOKEN.RBRACE, '}', startColumn);
+            break;
+        // --- END OF FIX ---
+
+        // --- ALL OTHER TOKEN CASES (THIS WAS MISSING BEFORE) ---
         case '=':
             if (this._peek() === '>') { this._advance(); tok = this._makeToken(TOKEN.ARROW, '=>', startColumn); }
             else if (this._peek() === '=') { this._advance(); tok = this._peek() === '=' ? (this._advance(), this._makeToken(TOKEN.EQ_STRICT, '===', startColumn)) : this._makeToken(TOKEN.EQ, '==', startColumn); }
@@ -185,36 +246,14 @@ nextToken() {
             else { tok = this._makeToken(TOKEN.GT, '>', startColumn); }
             break;
         case '&':
-            if (this._peek() === '&') {
-                this._advance(); // consume first &
-                if (this._peek() === '=') {
-                    this._advance(); // consume =
-                    tok = this._makeToken(TOKEN.LOGICAL_AND_ASSIGN, '&&=', startColumn);
-                } else {
-                    tok = this._makeToken(TOKEN.AND, '&&', startColumn);
-                }
-            } else if (this._peek() === '=') {
-                this._advance();
-                tok = this._makeToken(TOKEN.BITWISE_AND_ASSIGN, '&=', startColumn);
-            } else {
-                tok = this._makeToken(TOKEN.BITWISE_AND, '&', startColumn);
-            }
+            if (this._peek() === '&') { this._advance(); if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.LOGICAL_AND_ASSIGN, '&&='); } else { tok = this._makeToken(TOKEN.AND, '&&'); } }
+            else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_AND_ASSIGN, '&='); }
+            else { tok = this._makeToken(TOKEN.BITWISE_AND, '&'); }
             break;
         case '|':
-            if (this._peek() === '|') {
-                this._advance(); // consume first |
-                if (this._peek() === '=') {
-                    this._advance(); // consume =
-                    tok = this._makeToken(TOKEN.LOGICAL_OR_ASSIGN, '||=', startColumn);
-                } else {
-                    tok = this._makeToken(TOKEN.OR, '||', startColumn);
-                }
-            } else if (this._peek() === '=') {
-                this._advance();
-                tok = this._makeToken(TOKEN.BITWISE_OR_ASSIGN, '|=', startColumn);
-            } else {
-                tok = this._makeToken(TOKEN.BITWISE_OR, '|', startColumn);
-            }
+            if (this._peek() === '|') { this._advance(); if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.LOGICAL_OR_ASSIGN, '||='); } else { tok = this._makeToken(TOKEN.OR, '||'); } }
+            else if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_OR_ASSIGN, '|='); }
+            else { tok = this._makeToken(TOKEN.BITWISE_OR, '|'); }
             break;
         case '^':
             if (this._peek() === '=') { this._advance(); tok = this._makeToken(TOKEN.BITWISE_XOR_ASSIGN, '^=', startColumn); }
@@ -233,8 +272,6 @@ nextToken() {
             else { tok = this._makeToken(TOKEN.DOT, '.', startColumn); }
             break;
         case '`': this.templateStack.push(true); return this._readTemplateHead();
-        case '{': tok = this._makeToken(TOKEN.LBRACE, '{', startColumn); break;
-        case '}': tok = this._makeToken(TOKEN.RBRACE, '}', startColumn); break;
         case '(': tok = this._makeToken(TOKEN.LPAREN, '(', startColumn); break;
         case ')': tok = this._makeToken(TOKEN.RPAREN, ')', startColumn); break;
         case '[': tok = this._makeToken(TOKEN.LBRACKET, '[', startColumn); break;
@@ -283,29 +320,33 @@ nextToken() {
 		return this._readTemplatePart('TEMPLATE_MIDDLE');
 	}
 
-	_readTemplatePart(initialType) {
-		const p = this.position;
-		while (this.ch !== null && this.ch !== '`') {
-			this._guard();
-			if (this.ch === '$' && this._peek() === '{') {
-				const literal = this.source.slice(p, this.position);
-				this._advance(); // Consume '$'
-				this._advance(); // Consume '{'
-				this.templateStack.push(true);
-				return this._makeToken(initialType, literal);
-			}
-			this._advance();
-		}
+// B"H
+// 
 
-		const literal = this.source.slice(p, this.position);
-		if (this.ch === '`') {
-			this.templateStack.pop();
-			this._advance(); // Consume '`'
-			return this._makeToken(TOKEN.TEMPLATE_TAIL, literal);
-		}
+_readTemplatePart(initialType) {
+    const p = this.position;
+    while (this.ch !== null && this.ch !== '`') {
+        this._guard();
+        if (this.ch === '$' && this._peek() === '{') {
+            const literal = this.source.slice(p, this.position);
+            this._advance(); // Consume '$'
+            this._advance(); // Consume '{'
+            this.templateStack.push(true);
+            this.braceNestingLevel = 1; // ARM THE COUNTER
+            return this._makeToken(initialType, literal);
+        }
+        this._advance();
+    }
 
-		return this._makeToken(TOKEN.ILLEGAL, `Unterminated template literal`);
-	}
+    const literal = this.source.slice(p, this.position);
+    if (this.ch === '`') {
+        this.templateStack.pop();
+        this._advance(); // Consume '`'
+        return this._makeToken(TOKEN.TEMPLATE_TAIL, literal);
+    }
+
+    return this._makeToken(TOKEN.ILLEGAL, `Unterminated template literal`);
+}
 
 	_readIdentifier() {
 		const p = this.position;

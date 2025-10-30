@@ -468,6 +468,232 @@ export default (function Tzimtzum_IIFE() {
     </script>
     
     
+    <!-- B"H -->
+<!-- Place this new script tag alongside the others in your index.html -->
+<script type="awtsmoos" id="makor6">
+// B"H
+//--- The Tiferet Test: The Axis of Balance ---
+// A script to validate the integration of logical assignments, numeric separators,
+// and other modern (ES2022+) features.
+
+export default class DataHarmonizer {
+    // 1. Stress Point: Private fields using Numeric Separators and BigInt.
+    #cache = new Map();
+    #callCount = 0n;
+    #maxCacheSize = 1_000;
+    static #lastError = null;
+
+    // 2. Stress Point: Private class methods and accessors.
+    get #cacheUsage() {
+        return this.#cache.size / this.#maxCacheSize;
+    }
+
+    async #updateAnalytics(record) {
+        // Imaginary analytics call
+        await new Promise(r => setTimeout(r, 5));
+        this.#callCount++;
+        return { success: true, callNum: this.#callCount };
+    }
+
+    // 3. Stress Point: A static block with top-level await.
+    static {
+        try {
+            // Simulates loading a configuration at module load time.
+            const configModule = await import('./config.js');
+            this.config = configModule.default;
+        } catch (e) {
+            this.config = { fallback: true };
+        }
+    }
+
+    async processRecord(record) {
+        let needsUpdate = false;
+        
+        // 4. Stress Point: Logical OR assignment (||=).
+        // If `record.metadata` is falsy (null, undefined, etc.), assign a new object to it.
+        record.metadata ||= { createdAt: Date.now() };
+
+        // 5. Stress Point: Nullish coalescing assignment (??=).
+        // If `record.id` is null or undefined, assign a generated ID.
+        record.id ??= crypto.randomUUID();
+
+        // 6. Stress Point: Logical AND assignment (&&=).
+        // If `needsUpdate` is currently true, it will be reassigned to the result of the analytics call.
+        // If `needsUpdate` is false, the right side is never executed.
+        needsUpdate &&= await this.#updateAnalytics(record);
+        
+        // 7. Stress Point: Using a modern static method like Object.hasOwn.
+        if (Object.hasOwn(record, 'legacy')) {
+            delete record.legacy;
+        }
+
+        this.#cache.set(record.id, record);
+        return record;
+    }
+
+    // 8. Stress Point: Find an item using the .at() method for relative indexing.
+    findItem(id) {
+        const item = this.#cache.get(id);
+        const history = item?.metadata?.history ?? [];
+        // Get the second-to-last item from history, or undefined if not present.
+        return history.at(-2);
+    }
+    
+    // 9. Stress Point: A static private field with a RegExp using the 'd' (indices) flag.
+    static #pattern = /error:(?<code_val>\d{3})/d;
+    
+    static processLog(logLine) {
+        const match = logLine.match(this.#pattern);
+        // The .indices property is only available with the 'd' flag.
+        const indices = match?.indices?.groups?.code_val;
+        if (indices) {
+            return {
+                code: match.groups.code_val,
+                startsAt: indices[0],
+                endsAt: indices[1]
+            };
+        }
+        return null;
+    }
+}
+
+// --- Execution of the Tiferet Test ---
+(async () => {
+    console.log("--- Starting Tiferet Test ---");
+    const harmonizer = new DataHarmonizer();
+
+    // Test Case 1: Nullish and OR assignments
+    const record1 = { name: 'First Record', id: null };
+    const processed1 = await harmonizer.processRecord(record1);
+    console.log('Processed Record 1:', processed1);
+
+    // Test Case 2: Ensure assignments don't run when not needed
+    const record2 = { name: 'Second Record', id: 'abc-123', metadata: { status: 'stable' } };
+    const processed2 = await harmonizer.processRecord(record2);
+    console.log('Processed Record 2:', processed2.metadata.status === 'stable'); // Should be true
+
+    // Test Case 3: RegExp 'd' flag
+    const log = "System event. status:ok error:404 Not Found. user:admin";
+    const errorInfo = DataHarmonizer.processLog(log);
+    console.log('Parsed Log Info:', errorInfo); // Should show code and indices
+})();
+</script>
+
+<!-- B"H -->
+<!-- Place this new script tag alongside the others in your index.html -->
+<script type="awtsmoos" id="makor7">
+// B"H 
+//--- The Ein Sof Test: The Unknowable Limit ---
+// A script to test the parser's ability to comprehend the deepest layers of metaprogramming and asynchronous grammar.
+
+export default (class EinSof_Construct {
+    // 1. Stress Point: Static block with top-level await and the import.meta meta-property.
+    static {
+        this.moduleInfo = { url: import.meta.url, timestamp: Date.now() };
+        await new Promise(r => setTimeout(r, 1));
+    }
+
+    // 2. Stress Point: A private static field that is an immediately-invoked ASYNC class expression.
+    static #PrimordialVessel = (async () => {
+        // The base object can't be known until a dynamic import is resolved at runtime.
+        const Base = (await import('./base.js')).default || class {};
+
+        // This class is defined and instantiated entirely within the static initializer.
+        return class extends Base {
+            #creation = BigInt(Date.now());
+            [Symbol.for('kabbalistic.uid')] = true;
+
+            constructor(...args) {
+                // 3. Stress Point: super() call with a complex spread argument.
+                super(...(args.length > 0 ? args : [null]));
+            }
+
+            // An async generator to represent the flow of emanations.
+            async * #emanate(limit) {
+                for(let i = 0; i < limit; i++) {
+                    await new Promise(r => setTimeout(r, 1));
+                    yield { level: i, from: this.#creation };
+                }
+            }
+        }
+    })();
+
+    // 4. Stress Point: A Proxy handler with deep, nested, async logic.
+    static #handler = {
+        get: (target, prop, receiver) => {
+            console.log(`Intercepted access to '${prop.toString()}'`);
+
+            if (Reflect.has(target, prop)) {
+                return Reflect.get(target, prop, receiver);
+            }
+
+            // 5. Stress Point: Return a default value computed by a nested, IIAFE.
+            return (async (p) => {
+                await new Promise(r => setTimeout(r, 5));
+                return `[Ein Sof] Attribute '${p.toString()}' is beyond comprehension.`;
+            })(prop);
+        },
+    };
+    
+    #instance;
+
+    constructor() {
+        // 6. Stress Point: The final instance is a Proxy wrapping a dynamically resolved class.
+        // The parser must handle `new (await ...)` as the callee of `new Proxy`.
+        this.#instance = (async () => {
+            const VesselClass = await EinSof_Construct.#PrimordialVessel;
+            return new Proxy(new VesselClass(), EinSof_Construct.#handler);
+        })();
+    }
+
+    // 7. Stress Point: An async generator method that uses yield within a catch block
+    // and a labeled continue within a finally block.
+    async * breachTheVoid({ attempts = 3, onFail = () => 'recoil' } = {}) {
+        let count = 0;
+        OuterRim:
+        while (count < attempts) {
+            try {
+                const proxy = await this.#instance;
+                // Access a property that doesn't exist to trigger the proxy's 'get' trap.
+                const result = await proxy.unfathomable_attribute;
+                return result; // Exit if successful.
+            } catch (err) {
+                // Yielding from a catch block is a complex control flow.
+                yield { error: err.message, strategy: onFail() };
+                count++;
+            } finally {
+                // Continuing an outer labeled loop from a finally block.
+                if (count < attempts) continue OuterRim;
+            }
+        }
+        return "The Void remains sealed.";
+    }
+
+    // 8. Stress Point: A getter for a well-known Symbol as a computed property.
+    get [Symbol.toStringTag]() {
+        return 'EinSof_Construct';
+    }
+});
+
+// Immediately-invoked async function to run the final test.
+(async () => {
+    try {
+        // 9. Stress Point: Dynamically importing the module itself to instantiate the default export.
+        const construct = new (await (await import(import.meta.url)).default)();
+        
+        // 10. Stress Point: The `for await...of` loop over a complex async generator.
+        for await (const attempt of construct.breachTheVoid({ attempts: 2 })) {
+            console.log('A whisper from the Void:', attempt);
+        }
+        
+    } catch(e) {
+        console.error("The simulation of Ein Sof has collapsed:", e);
+    }
+})();
+</script>
+
+
+    
     <!-- Load scripts in the correct, required order -->
     <script src="constants.js"></script>
     <script src="Lexer.js"></script>
@@ -482,7 +708,9 @@ export default (function Tzimtzum_IIFE() {
     
    <!-- In index.html -->
 <script>
-var makor=document. getElementById("makor5")
+
+
+var makor=document. getElementById("makor7")
     document.addEventListener('DOMContentLoaded', () => {
         const jsInput = document.getElementById('js-input');
         const astOutput = document.getElementById('ast-output');

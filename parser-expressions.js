@@ -4,53 +4,64 @@
 	// B"H
 // --- Start of Replacement for registerExpressionParsers in parser-expressions.js ---
 
-	proto.registerExpressionParsers = function() {
-		const p = this.prefixParseFns, i = this.infixParseFns;
+	// B"H
+// In parser-expressions.js
+// --- Replace your existing registerExpressionParsers with this complete, corrected version ---
 
-        // Register the new prefix operator `~`
-        p[TOKEN.BANG] = p[TOKEN.MINUS] = p[TOKEN.PLUS] = p[TOKEN.AWAIT] = p[TOKEN.BITWISE_NOT] = p[TOKEN.TYPEOF] = p[TOKEN.VOID] = this._parsePrefixExpression;
-        
-        p[TOKEN.SLASH] = this._parseRegExpLiteral;
-		p[TOKEN.IDENT] = this._parseIdentifier,
-		p[TOKEN.NUMBER] = p[TOKEN.STRING] = p[TOKEN.TRUE] = p[TOKEN.FALSE] = p[TOKEN.NULL] = this._parseLiteral, 
-        p[TOKEN.THIS] = this._parseThisExpression,
-		p[TOKEN.SUPER] = this._parseSuper, 
-		p[TOKEN.INCREMENT] = p[TOKEN.DECREMENT] = l => this._parseUpdateExpression(l, !0), 
-        p[TOKEN.LPAREN] = this._parseGroupedOrArrowExpression,
-		p[TOKEN.LBRACE] = this._parseObjectLiteral,
-		p[TOKEN.LBRACKET] = this._parseArrayLiteral,
-		p[TOKEN.TEMPLATE_HEAD] = p[TOKEN.TEMPLATE_TAIL] = this._parseTemplateLiteral,
-		p[TOKEN.NEW] = this._parseNewExpression,
-		p[TOKEN.FUNCTION] = this._parseFunctionExpression,
-		p[TOKEN.CLASS] = this._parseClassExpression;
-		p[TOKEN.ASYNC] = this._parseAsyncExpression;
-		p[TOKEN.YIELD] = this._parseYieldExpression;
-		p[TOKEN.DOTDOTDOT] = this._parseSpreadElement;
-		p[TOKEN.IMPORT] = this._parseImportExpression;
-			
-		const binary = l => this._parseBinaryExpression(l);
-		
-		i[TOKEN.TEMPLATE_HEAD] = i[TOKEN.TEMPLATE_TAIL] = this._parseTaggedTemplateExpression;
-        // Register all binary operators, including the new bitwise and shift ones
-        i[TOKEN.PLUS] = i[TOKEN.MINUS] = i[TOKEN.SLASH] = i[TOKEN.ASTERISK] = i[TOKEN.MODULO] = binary; 
-        i[TOKEN.EQ] = i[TOKEN.NOT_EQ] = i[TOKEN.EQ_STRICT] = i[TOKEN.NOT_EQ_STRICT] = binary; 
-        i[TOKEN.LT] = i[TOKEN.GT] = i[TOKEN.LTE] = i[TOKEN.GTE] = i[TOKEN.IN] = i[TOKEN.INSTANCEOF] = binary; 
-        i[TOKEN.AND] = i[TOKEN.OR] = i[TOKEN.NULLISH_COALESCING] = binary; 
-        i[TOKEN.EXPONENT] = binary; 
-        i[TOKEN.BITWISE_AND] = i[TOKEN.BITWISE_OR] = i[TOKEN.BITWISE_XOR] = binary;
-        i[TOKEN.LEFT_SHIFT] = i[TOKEN.RIGHT_SHIFT] = i[TOKEN.UNSIGNED_RIGHT_SHIFT] = binary;
+proto.registerExpressionParsers = function() {
+    const p = this.prefixParseFns, i = this.infixParseFns;
 
-        // Register all assignment operators, including the new bitwise and shift ones
-        i[TOKEN.ASSIGN] = i[TOKEN.PLUS_ASSIGN] = i[TOKEN.MINUS_ASSIGN] = i[TOKEN.ASTERISK_ASSIGN] = i[TOKEN.SLASH_ASSIGN] = i[TOKEN.EXPONENT_ASSIGN] = i[TOKEN.MODULO_ASSIGN] = i[TOKEN.BITWISE_AND_ASSIGN] = i[TOKEN.BITWISE_OR_ASSIGN] = i[TOKEN.BITWISE_XOR_ASSIGN] = i[TOKEN.LEFT_SHIFT_ASSIGN] = i[TOKEN.RIGHT_SHIFT_ASSIGN] = i[TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN] = l => this._parseAssignmentExpression(l); 
+    // Register the new prefix operator `~`
+    p[TOKEN.BANG] = p[TOKEN.MINUS] = p[TOKEN.PLUS] = p[TOKEN.AWAIT] = p[TOKEN.BITWISE_NOT] = p[TOKEN.TYPEOF] = p[TOKEN.VOID] = this._parsePrefixExpression;
+    
+    p[TOKEN.SLASH] = this._parseRegExpLiteral;
+    p[TOKEN.IDENT] = this._parseIdentifier,
+    p[TOKEN.NUMBER] = p[TOKEN.STRING] = p[TOKEN.TRUE] = p[TOKEN.FALSE] = p[TOKEN.NULL] = this._parseLiteral, 
+    p[TOKEN.THIS] = this._parseThisExpression,
+    p[TOKEN.SUPER] = this._parseSuper, 
+    p[TOKEN.INCREMENT] = p[TOKEN.DECREMENT] = l => this._parseUpdateExpression(l, !0), 
+    p[TOKEN.LPAREN] = this._parseGroupedOrArrowExpression,
+    p[TOKEN.LBRACE] = this._parseObjectLiteral,
+    p[TOKEN.LBRACKET] = this._parseArrayLiteral,
+    p[TOKEN.TEMPLATE_HEAD] = p[TOKEN.TEMPLATE_TAIL] = this._parseTemplateLiteral,
+    p[TOKEN.NEW] = this._parseNewExpression,
+    p[TOKEN.FUNCTION] = this._parseFunctionExpression,
+    p[TOKEN.CLASS] = this._parseClassExpression;
+    p[TOKEN.ASYNC] = this._parseAsyncExpression;
+    p[TOKEN.YIELD] = this._parseYieldExpression;
+    p[TOKEN.DOTDOTDOT] = this._parseSpreadElement;
+    p[TOKEN.IMPORT] = this._parseImportExpression;
         
-        i[TOKEN.COMMA] = l => this._parseSequenceExpression(l); 
-        i[TOKEN.INCREMENT] = i[TOKEN.DECREMENT] = l => this._parseUpdateExpression(l, !1);
-        i[TOKEN.LPAREN] = this._parseCallExpression;
-		i[TOKEN.DOT] = this._parseMemberExpression;
-		i[TOKEN.LBRACKET] = this._parseMemberExpression;
-		i[TOKEN.OPTIONAL_CHAINING] = this._parseChainExpression;
-		i[TOKEN.QUESTION] = this._parseConditionalExpression;
-	};
+    const binary = l => this._parseBinaryExpression(l);
+    
+    i[TOKEN.TEMPLATE_HEAD] = i[TOKEN.TEMPLATE_TAIL] = this._parseTaggedTemplateExpression;
+    // Register all binary operators, including the new bitwise and shift ones
+    i[TOKEN.PLUS] = i[TOKEN.MINUS] = i[TOKEN.SLASH] = i[TOKEN.ASTERISK] = i[TOKEN.MODULO] = binary; 
+    i[TOKEN.EQ] = i[TOKEN.NOT_EQ] = i[TOKEN.EQ_STRICT] = i[TOKEN.NOT_EQ_STRICT] = binary; 
+    i[TOKEN.LT] = i[TOKEN.GT] = i[TOKEN.LTE] = i[TOKEN.GTE] = i[TOKEN.IN] = i[TOKEN.INSTANCEOF] = binary; 
+    i[TOKEN.AND] = i[TOKEN.OR] = i[TOKEN.NULLISH_COALESCING] = binary; 
+    i[TOKEN.EXPONENT] = binary; 
+    i[TOKEN.BITWISE_AND] = i[TOKEN.BITWISE_OR] = i[TOKEN.BITWISE_XOR] = binary;
+    i[TOKEN.LEFT_SHIFT] = i[TOKEN.RIGHT_SHIFT] = i[TOKEN.UNSIGNED_RIGHT_SHIFT] = binary;
+
+    // --- THIS IS THE TIKKUN (THE FIX) ---
+    // The new LOGICAL_OR_ASSIGN and LOGICAL_AND_ASSIGN tokens have been added to this list.
+    // Now, the parser will correctly use the _parseAssignmentExpression function for them.
+    i[TOKEN.ASSIGN] = i[TOKEN.PLUS_ASSIGN] = i[TOKEN.MINUS_ASSIGN] = i[TOKEN.ASTERISK_ASSIGN] = 
+    i[TOKEN.SLASH_ASSIGN] = i[TOKEN.EXPONENT_ASSIGN] = i[TOKEN.MODULO_ASSIGN] = i[TOKEN.NULLISH_ASSIGN] =
+    i[TOKEN.LOGICAL_OR_ASSIGN] = i[TOKEN.LOGICAL_AND_ASSIGN] = // <-- ADDED HERE
+    i[TOKEN.BITWISE_AND_ASSIGN] = i[TOKEN.BITWISE_OR_ASSIGN] = i[TOKEN.BITWISE_XOR_ASSIGN] = 
+    i[TOKEN.LEFT_SHIFT_ASSIGN] = i[TOKEN.RIGHT_SHIFT_ASSIGN] = i[TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN] = 
+    l => this._parseAssignmentExpression(l); 
+    
+    i[TOKEN.COMMA] = l => this._parseSequenceExpression(l); 
+    i[TOKEN.INCREMENT] = i[TOKEN.DECREMENT] = l => this._parseUpdateExpression(l, !1);
+    i[TOKEN.LPAREN] = this._parseCallExpression;
+    i[TOKEN.DOT] = this._parseMemberExpression;
+    i[TOKEN.LBRACKET] = this._parseMemberExpression;
+    i[TOKEN.OPTIONAL_CHAINING] = this._parseChainExpression;
+    i[TOKEN.QUESTION] = this._parseConditionalExpression;
+};
 
 
 	// B"H
@@ -58,6 +69,10 @@
 	
 
 
+// B"H
+// In parser-core.js (or wherever _parseExpression is defined)
+
+// --- REPLACEMENT for _parseExpression ---
 proto._parseExpression = function(precedence) {
     this.recursionDepth++;
     if (this.recursionDepth > this.maxRecursionDepth) {
@@ -72,16 +87,16 @@ proto._parseExpression = function(precedence) {
         }
         let leftExp = prefix.call(this);
 
-        // --- THE LOCATION OF THIS CHECK IS THE OTHER CRITICAL DIFFERENCE ---
-        // It is now BEFORE the while loop. After parsing `name`, this check runs.
-        // It sees the flag is true and the next token is TEMPLATE_TAIL, so it returns `leftExp`
-        // immediately, preventing the broken `while` loop from ever starting.
-        if (this.parsingTemplateExpression && 
-           (this.currToken.type === TOKEN.TEMPLATE_MIDDLE || this.currToken.type === TOKEN.TEMPLATE_TAIL)) {
-            return leftExp;
-        }
-
         while (precedence < this._getPrecedence(this.currToken)) {
+            // --- THE FIX ---
+            // If we are inside a template literal, and the next token is the start
+            // of another template part, it is NOT an infix operator. We must stop.
+            if (this.parsingTemplateExpression && 
+               (this.currToken.type === TOKEN.TEMPLATE_MIDDLE || this.currToken.type === TOKEN.TEMPLATE_TAIL)) {
+                return leftExp;
+            }
+            // --- END OF THE FIX ---
+
             let infix = this.infixParseFns[this.currToken.type];
             if (!infix) {
                 return leftExp;
@@ -93,7 +108,6 @@ proto._parseExpression = function(precedence) {
         this.recursionDepth--;
     }
 };
-
 	proto._parseIdentifier =
 		function() {
 			if (this._peekTokenIs(
@@ -126,30 +140,96 @@ proto._parseExpression = function(precedence) {
 				this._finishNode(e,
 					t)
 		};
-	proto._parseLiteral =
-		function() {
-			const t = this
-				._startNode(),
-				e = this.currToken;
-			let s = e.literal;
-			e.type === TOKEN
-				.NUMBER ? s =
-				parseFloat(s) : e
-				.type === TOKEN
-				.TRUE ? s = !0 : e
-				.type === TOKEN
-				.FALSE ? s = !1 : e
-				.type === TOKEN
-				.NULL && (s = null);
-			const i = {
-				type: "Literal",
-				value: s,
-				raw: e.literal
-			};
-			return this._advance(),
-				this._finishNode(i,
-					t)
-		};
+		
+		
+	
+	
+	// B"H
+
+// This version adds logic to correctly handle numeric separators and BigInts.
+proto._parseLiteral = function() {
+    const s = this._startNode();
+    const token = this.currToken;
+    let value = token.literal;
+    let node = { type: "Literal" };
+
+    switch (token.type) {
+        case TOKEN.NUMBER:
+            // --- FIX FOR BIGINT ---
+            if (token.literal.endsWith('n')) {
+                const bigintStr = token.literal.slice(0, -1).replace(/_/g, '');
+                node.value = null; // Per ESTree spec for BigInt
+                node.bigint = bigintStr;
+            } else {
+            // --- FIX FOR NUMERIC SEPARATORS ---
+                node.value = parseFloat(token.literal.replace(/_/g, ''));
+            }
+            break;
+        case TOKEN.TRUE:     value = true;  break;
+        case TOKEN.FALSE:    value = false; break;
+        case TOKEN.NULL:     value = null;  break;
+        case TOKEN.STRING:   /* value is already correct */ break;
+    }
+
+    // Assign value if it hasn't been handled by a special case
+    if (node.value === undefined) {
+        node.value = value;
+    }
+    node.raw = token.literal;
+
+    this._advance();
+    return this._finishNode(node, s);
+};
+
+
+// B"H
+
+// This version correctly handles parsing the flags after the pattern.
+proto._parseRegExpLiteral = function() {
+    const s = this._startNode();
+    const lexer = this.l;
+
+    const bodyStartPosition = this.currToken.startIndex + 1;
+    let scanPosition = bodyStartPosition;
+    let inCharSet = false;
+    while (scanPosition < lexer.source.length) {
+        const char = lexer.source[scanPosition];
+        if (char === '\\') { scanPosition += 2; continue; }
+        if (char === '[') inCharSet = true;
+        else if (char === ']') inCharSet = false;
+        if (char === '/' && !inCharSet) break;
+        scanPosition++;
+    }
+    const bodyEndPosition = scanPosition;
+    const body = lexer.source.substring(bodyStartPosition, bodyEndPosition);
+    
+    // --- THIS IS THE FIX ---
+    scanPosition++; // Move past the closing '/'
+    const flagsStartPosition = scanPosition;
+    // Scan for all valid regex flags
+    while (scanPosition < lexer.source.length && 'gimsuy'.includes(lexer.source[scanPosition])) {
+        scanPosition++;
+    }
+    const flagsEndPosition = scanPosition;
+    const flags = lexer.source.substring(flagsStartPosition, flagsEndPosition);
+    // --- END OF FIX ---
+
+    const node = {
+        type: 'Literal', value: null, raw: `/${body}/${flags}`,
+        regex: { pattern: body, flags: flags }
+    };
+    const finishedNode = this._finishNode(node, s);
+
+    lexer.readPosition = flagsEndPosition;
+    lexer._advance();
+    
+    this.currToken = this.l.nextToken();
+    this.peekToken = this.l.nextToken();
+
+    return finishedNode;
+};
+	
+	
 	proto._parseThisExpression =
 		function() {
 			const t = this
@@ -175,60 +255,7 @@ proto._parseExpression = function(precedence) {
 
 // 
 
-// B"H - The Truly Final Tikkun for Regular Expression Parsing
-proto._parseRegExpLiteral = function() {
-    const s = this._startNode();
-    const lexer = this.l;
 
-    // Part 1: Manually scan the source using the token's perfect startIndex.
-    // (This part is now working correctly thanks to our previous fix).
-    const bodyStartPosition = this.currToken.startIndex + 1;
-    let scanPosition = bodyStartPosition;
-    let inCharSet = false;
-    while (scanPosition < lexer.source.length) {
-        const char = lexer.source[scanPosition];
-        if (char === '\\') { scanPosition += 2; continue; }
-        if (char === '[') inCharSet = true;
-        else if (char === ']') inCharSet = false;
-        if (char === '/' && !inCharSet) break;
-        scanPosition++;
-    }
-    const bodyEndPosition = scanPosition;
-    const body = lexer.source.substring(bodyStartPosition, bodyEndPosition);
-    scanPosition++;
-    const flagsStartPosition = scanPosition;
-    while (scanPosition < lexer.source.length && 'gimsuy'.includes(lexer.source[scanPosition])) {
-        scanPosition++;
-    }
-    const flagsEndPosition = scanPosition;
-    const flags = lexer.source.substring(flagsStartPosition, flagsEndPosition);
-
-    // Part 2: Create the AST node.
-    const node = {
-        type: 'Literal', value: null, raw: `/${body}/${flags}`,
-        regex: { pattern: body, flags: flags }
-    };
-    const finishedNode = this._finishNode(node, s);
-
-    // --- Part 3: THE DEFINITIVE FIX ---
-    // Instead of trying to manually guess the lexer's internal state,
-    // we do two simple, robust things.
-
-    // 1. Tell the lexer where the reading should resume.
-    lexer.readPosition = flagsEndPosition;
-
-    // 2. Call the lexer's OWN advance method. This is the crucial step.
-    //    It will correctly update ALL of the lexer's internal pointers
-    //    (`ch`, `position`, `readPosition`) in a consistent way, leaving it
-    //    in a perfect state to read the token AFTER the regex.
-    lexer._advance();
-    
-    // Part 4: With the lexer state now perfect, refresh the parser's token buffer.
-    this.currToken = this.l.nextToken();
-    this.peekToken = this.l.nextToken();
-
-    return finishedNode;
-};
 
 
 	
@@ -283,17 +310,14 @@ proto._parseRegExpLiteral = function() {
 
 
 // B"H
+// In parser-expressions.js
 
-
-
-
-// B"H 
-
+// --- THE DEFINITIVE REPLACEMENT for _parseGroupedOrArrowExpression ---
 proto._parseGroupedOrArrowExpression = function() {
     const s = this._startNode();
     this._expect(TOKEN.LPAREN);
 
-    if (this._currTokenIs(TOKEN.RPAREN)) { // handles `()` for `() => ...`
+    if (this._currTokenIs(TOKEN.RPAREN)) { // Handles `()` for `() => ...`
         this._advance();
         if (!this._currTokenIs(TOKEN.ARROW)) {
             this._error("Unexpected empty parentheses in expression.");
@@ -302,39 +326,34 @@ proto._parseGroupedOrArrowExpression = function() {
         return this._parseArrowFunctionExpression(s, [], false);
     }
 
-    // --- The Tikkun HaGadol (The Great Rectification) ---
     const exprList = [];
     do {
-        // Step 1: The Heuristic.
-        // If the token inside the parentheses is `{` or `[`, we can be almost certain
-        // that this is a destructuring pattern for an arrow function's parameters.
-        if (this._currTokenIs(TOKEN.LBRACE) || this._currTokenIs(TOKEN.LBRACKET)) {
-            // Use the parser that is specifically designed for patterns with default values.
-            // This correctly parses `({ customId = id } = {})`.
-            exprList.push(this._parseBindingWithDefault());
-        } else {
-            // For all other cases, like `(function*(){...})` or `(a + b)`,
-            // parse it as a standard, generic expression.
-            exprList.push(this._parseExpression(PRECEDENCE.ASSIGNMENT));
-        }
+        // --- THE FIX ---
+        // We parse each item in the parenthesized list with the precedence of SEQUENCE.
+        // This is the perfect balance:
+        // 1. It is LOW enough (1) to allow an AssignmentExpression (precedence 2) to be parsed within it.
+        // 2. It is HIGH enough (1) to NOT treat a comma (precedence 1) as an infix sequence operator,
+        //    leaving the comma to be correctly handled by this do...while loop as a separator.
+        exprList.push(this._parseExpression(PRECEDENCE.SEQUENCE));
     } while (this._currTokenIs(TOKEN.COMMA) && (this._advance(), true));
 
     this._expect(TOKEN.RPAREN);
 
-    // Step 2: Resolve the ambiguity.
-    // After parsing the contents, we look for the `=>` to make our final decision.
+    // After parsing, we resolve the ambiguity by looking for the arrow.
     if (this._currTokenIs(TOKEN.ARROW)) {
-        // It IS an arrow function. Convert the parsed expressions to valid patterns.
+        // It's an arrow function. Convert expressions to valid parameter patterns.
         const params = exprList.map(e => this._convertExpressionToPattern(e));
         return this._parseArrowFunctionExpression(s, params, false);
     }
 
-    // It was NOT an arrow function. Return the parsed content as a grouped expression or sequence.
+    // It was not an arrow function.
     if (exprList.length > 1) {
+        // It was a sequence expression, like `(a, b, c)`.
         const seqNode = { type: 'SequenceExpression', expressions: exprList };
         const seqStart = { loc: { start: exprList[0].loc.start } };
         return this._finishNode(seqNode, seqStart);
     } else {
+        // It was a single grouped expression, like `(a + b)`.
         return exprList[0];
     }
 };
@@ -959,8 +978,10 @@ proto._parseYieldExpression = function() {
 
 
 
-// B"H - 
-// B"H - In parser-expressions.js, replace the entire _parseTemplateLiteral function.
+// B"H
+// In parser-expressions.js
+
+// --- REPLACEMENT for _parseTemplateLiteral ---
 proto._parseTemplateLiteral = function() {
     const startNodeInfo = this._startNode();
     const quasis = [];
@@ -979,22 +1000,24 @@ proto._parseTemplateLiteral = function() {
         isTail = tokenType === TOKEN.TEMPLATE_TAIL;
         const value = { raw: this.currToken.literal, cooked: this.currToken.literal };
         quasis.push(this._finishNode({ type: 'TemplateElement', value: value, tail: isTail }, quasiStart));
+        
         this._advance();
 
         if (!isTail) {
-            // --- THIS IS THE NEW, ESSENTIAL LOGIC MY LAST ANSWER MISSED ---
-            this.parsingTemplateExpression = true; // Set the flag BEFORE the recursive call.
+            // --- THE FIX ---
+            // Set a flag to notify the expression parser of its special context.
+            this.parsingTemplateExpression = true;
             
             expressions.push(this._parseExpression(PRECEDENCE.LOWEST));
             
-            this.parsingTemplateExpression = false; // Unset it IMMEDIATELY after.
-            // --- END OF THE CRITICAL FIX ---
+            // Unset the flag immediately so it doesn't affect the rest of the parser.
+            this.parsingTemplateExpression = false;
+            // --- END OF THE FIX ---
         }
     }
 
     return this._finishNode({ type: 'TemplateLiteral', quasis, expressions }, startNodeInfo);
 };
-		
 		
 		
 		// Add this new helper function to parser-expressions.js

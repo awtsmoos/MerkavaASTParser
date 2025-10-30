@@ -87,35 +87,42 @@ class MerkabahParser {
 
 	_getPrecedence(t) { return PRECEDENCES[t.type] || PRECEDENCE.LOWEST; }
 
-    parse() {
-        const program = { type: 'Program', body: [], sourceType: 'module', loc: { start: { line: 1, column: 0 } } };
+    // B"H
+// In parser-core.js
+parse() {
+    const program = { type: 'Program', body: [], sourceType: 'module', loc: { start: { line: 1, column: 0 } } };
 
-        while (!this._currTokenIs(TOKEN.EOF)) {
-            const positionBeforeParse = this.l.position;
+    while (!this._currTokenIs(TOKEN.EOF)) {
+        const positionBeforeParse = this.l.position;
 
-            try {
-                const stmt = this._parseDeclaration();
-                if (stmt) {
-                    program.body.push(stmt);
-                } else if (!this.panicMode) {
-                    this._error(`Unexpected token: "${this.currToken.literal}" cannot start a statement.`);
-                    this._advance(); 
-                }
-            } catch (e) {
-                console.error("CAUGHT INITIAL ERROR:", e); 
-                this._synchronize();
+        try {
+            const stmt = this._parseDeclaration();
+            if (stmt) {
+                program.body.push(stmt);
+            } else if (!this.panicMode) {
+                this._error(`Unexpected token: "${this.currToken.literal}" cannot start a statement.`);
+                this._advance(); 
             }
-
-            // This is the correct, robust infinite loop guard.
-            if (this.l.position === positionBeforeParse && !this._currTokenIs(TOKEN.EOF)) {
-                throw new Error(
-                    `PARSER HALTED: Infinite loop detected. Main loop failed to advance.`
-                );
-            }
+        } catch (e) {
+            console.error("CAUGHT INITIAL ERROR:", e); 
+            this._synchronize();
         }
 
-        const endToken = this.prevToken || this.currToken;
-        program.loc.end = { line: endToken.line, column: endToken.column + (endToken.literal?.length || 0) };
-        return program;
+        if (this.l.position === positionBeforeParse && !this._currTokenIs(TOKEN.EOF)) {
+            throw new Error(
+                `PARSER HALTED: Infinite loop detected. Main loop failed to advance.`
+            );
+        }
     }
+
+    const endToken = this.prevToken || this.currToken;
+    program.loc.end = { line: endToken.line, column: endToken.column + (endToken.literal?.length || 0) };
+    
+    // --- ADD THIS LINE ---
+    // Attach the comments collected by the lexer to the final program node.
+    program.comments = this.l.comments;
+    // --- END OF ADDITION ---
+
+    return program;
+}
 }
