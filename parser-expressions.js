@@ -1156,6 +1156,6 @@ proto._parseTaggedTemplateExpression = function(tag) { // 'tag' is the expressio
     }, s);
 };
 
-})(MerkabahParser
+})(MerkavahParser
 	.prototype
 	); // This is the end of the file

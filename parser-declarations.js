@@ -852,4 +852,4 @@ proto._parseExportSpecifier = function() {
 
 
 
-})(MerkabahParser.prototype);
+})(MerkavahParser.prototype);

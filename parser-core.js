@@ -1,6 +1,6 @@
 // B"H
 // In parser-core.js
-class MerkabahParser {
+class MerkavahParser {
 	constructor(s) {
 		this.l = new Lexer(s);
 		this.errors = [];

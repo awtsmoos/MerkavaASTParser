@@ -376,4 +376,4 @@ proto._parseWithStatement = function() {
     
     
 
-})(MerkabahParser.prototype);
+})(MerkavahParser.prototype);
