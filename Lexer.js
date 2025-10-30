@@ -33,17 +33,25 @@ class Lexer {
 		}
 	}
 
-	_advance() {
-		this._guard();
-		if (this.readPosition >= this.source.length) {
-			this.ch = null;
-		} else {
-			this.ch = this.source[this.readPosition];
-		}
-		this.position = this.readPosition;
-		this.readPosition++;
-		this.column++;
-	}
+	// B"H - The rectified _advance method
+_advance() {
+    this._guard();
+    if (this.readPosition >= this.source.length) {
+        this.ch = null;
+    } else {
+        this.ch = this.source[this.readPosition];
+    }
+    this.position = this.readPosition;
+    this.readPosition++;
+
+    // --- THIS IS THE TIKKUN ---
+    // The column should only be incremented if the character is NOT a newline.
+    // The handling of newlines (incrementing line, resetting column) is the
+    // exclusive responsibility of the _skipWhitespace method.
+    if (this.ch !== '\n' && this.ch !== '\r') {
+        this.column++;
+    }
+}
 
 	_peek() {
 		this._guard();
@@ -51,12 +59,26 @@ class Lexer {
 		return this.source[this.readPosition];
 	}
 
-	_makeToken(type, literal, startColumn, startLine) {
-		this._guard();
-		const col = startColumn || this.column - (literal?.length || (this.ch === null ? 0 : 1));
-        const line = startLine || this.line;
-		return { type, literal, line: line, column: col, hasLineTerminatorBefore: this.hasLineTerminatorBefore };
-	}
+	// B"H - In Lexer.js, replace the _makeToken function
+_makeToken(type, literal, startColumn, startLine) {
+    this._guard();
+    const col = startColumn || this.column - (literal?.length || (this.ch === null ? 0 : 1));
+    const line = startLine || this.line;
+    
+    // --- THIS IS THE TIKKUN, PART 1 ---
+    // We are adding a `startIndex` property to every token.
+    // When _makeToken is called, `this.position` is the index of the
+    // first character of the token we are about to create. This gives
+    // the parser a perfect, unambiguous memory of where each token began.
+    return { 
+        type, 
+        literal, 
+        line: line, 
+        column: col, 
+        hasLineTerminatorBefore: this.hasLineTerminatorBefore, 
+        startIndex: this.position // Add this line
+    };
+}
 
 	nextToken() {
 		this._guard();

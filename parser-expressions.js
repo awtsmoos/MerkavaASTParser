@@ -205,67 +205,60 @@
 
 // 
 
-// B"H - The rectified _parseRegExpLiteral
+// B"H - The Truly Final Tikkun for Regular Expression Parsing
 proto._parseRegExpLiteral = function() {
     const s = this._startNode();
     const lexer = this.l;
 
-    // The current token is guaranteed to be '/'. We read directly from the source.
-    let i = lexer.position + 1; // Start scanning from the character AFTER the opening '/'
+    // Part 1: Manually scan the source using the token's perfect startIndex.
+    // (This part is now working correctly thanks to our previous fix).
+    const bodyStartPosition = this.currToken.startIndex + 1;
+    let scanPosition = bodyStartPosition;
     let inCharSet = false;
-
-    // Find the end of the regex body, correctly handling escaped slashes and character sets.
-    while (i < lexer.source.length) {
-        const char = lexer.source[i];
-        if (char === '\\') { // Skip any escaped character
-            i += 2;
-            continue;
-        }
+    while (scanPosition < lexer.source.length) {
+        const char = lexer.source[scanPosition];
+        if (char === '\\') { scanPosition += 2; continue; }
         if (char === '[') inCharSet = true;
-        if (char === ']') inCharSet = false;
-        if (char === '/' && !inCharSet) break; // Found the end
-        i++;
+        else if (char === ']') inCharSet = false;
+        if (char === '/' && !inCharSet) break;
+        scanPosition++;
     }
-    const endOfBody = i;
-
-    const body = lexer.source.substring(lexer.position + 1, endOfBody);
-    i++; // Move past the closing '/'
-
-    // Now parse the flags (g, i, m, s, u, y)
-    let startOfFlags = i;
-    while (i < lexer.source.length && 'gimsuy'.includes(lexer.source[i])) {
-        i++;
+    const bodyEndPosition = scanPosition;
+    const body = lexer.source.substring(bodyStartPosition, bodyEndPosition);
+    scanPosition++;
+    const flagsStartPosition = scanPosition;
+    while (scanPosition < lexer.source.length && 'gimsuy'.includes(lexer.source[scanPosition])) {
+        scanPosition++;
     }
-    const flags = lexer.source.substring(startOfFlags, i);
-    
-    // --- THIS IS THE CRITICAL FIX ---
-    // Manually advance the lexer's internal state to be *past* the entire regex.
-    lexer.position = i - 1;
-    lexer.readPosition = i;
-    lexer.ch = lexer.source[lexer.position] || null;
+    const flagsEndPosition = scanPosition;
+    const flags = lexer.source.substring(flagsStartPosition, flagsEndPosition);
 
-    // Create the AST node for the literal we just parsed.
+    // Part 2: Create the AST node.
     const node = {
-        type: 'Literal',
-        value: null,
-        raw: `/${body}/${flags}`,
-        regex: {
-            pattern: body,
-            flags: flags
-        }
+        type: 'Literal', value: null, raw: `/${body}/${flags}`,
+        regex: { pattern: body, flags: flags }
     };
     const finishedNode = this._finishNode(node, s);
 
-    // After manually advancing the lexer, we must completely refresh the
-    // parser's token lookahead buffer. We CANNOT use _advance() here as it
-    // would use a stale peekToken. We must load the NEXT token.
+    // --- Part 3: THE DEFINITIVE FIX ---
+    // Instead of trying to manually guess the lexer's internal state,
+    // we do two simple, robust things.
+
+    // 1. Tell the lexer where the reading should resume.
+    lexer.readPosition = flagsEndPosition;
+
+    // 2. Call the lexer's OWN advance method. This is the crucial step.
+    //    It will correctly update ALL of the lexer's internal pointers
+    //    (`ch`, `position`, `readPosition`) in a consistent way, leaving it
+    //    in a perfect state to read the token AFTER the regex.
+    lexer._advance();
+    
+    // Part 4: With the lexer state now perfect, refresh the parser's token buffer.
     this.currToken = this.l.nextToken();
     this.peekToken = this.l.nextToken();
 
-    // Finally, return the AST node for the regular expression.
     return finishedNode;
 };
-
 
 
 	
