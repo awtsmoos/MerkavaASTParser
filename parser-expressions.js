@@ -295,58 +295,56 @@
 	
 
 
+// B"H
+
 proto._parseRegExpLiteral = function() {
     const s = this._startNode();
-    
-    // The current token is '/'. We need to read from the raw source to get the rest.
     const lexer = this.l;
-    let body = '';
-    let flags = '';
+    
+    // The current token is guaranteed to be '/'. We read directly from the source.
+    const start = this.currToken.column -1; // -1 to get the actual index
+    let i = lexer.position + 1; // Start scanning from the character AFTER the opening '/'
+    
     let inCharSet = false;
     
-    // Start reading from the character immediately after the initial '/'
-    let i = lexer.position + 1;
-
-    // Loop through the source to find the body of the regex
+    // THIS IS THE TIKKUN: A more robust loop to find the end of the regex.
     while (i < lexer.source.length) {
         const char = lexer.source[i];
         
-        if (char === '\\') { // Handle simple escape sequences
-            body += char + lexer.source[i + 1];
+        if (char === '\\') { // Skip any escaped character
             i += 2;
             continue;
         }
         if (char === '[') inCharSet = true;
         if (char === ']') inCharSet = false;
-
-        if (char === '/' && !inCharSet) { // Found the closing '/'
-            i++; // Move past it
-            break;
-        }
         
-        body += char;
+        // If we find the closing '/', and we are not inside a character set like `[/]`, we're done.
+        if (char === '/' && !inCharSet) break;
+        
         i++;
     }
-
-    // After the body, parse the flags
+    
+    // Now 'i' is the index of the closing '/'.
+    const body = lexer.source.substring(lexer.position + 1, i);
+    i++; // Move past the closing '/'
+    
+    // Now parse the flags (g, i, m, s, u, y)
+    let flagsStart = i;
     while (i < lexer.source.length && 'gimsuy'.includes(lexer.source[i])) {
-        flags += lexer.source[i];
         i++;
     }
-
-    // CRITICAL STEP: Manually advance the lexer's internal position past the regex we just consumed.
+    const flags = lexer.source.substring(flagsStart, i);
+    
+    // CRITICAL STEP: Manually update the lexer's internal state to the position
+    // right after the regex literal, so parsing can resume from there.
     lexer.position = i - 1;
     lexer.readPosition = i;
     lexer.ch = lexer.source[lexer.position] || null;
-
-    // Now, force the parser to re-read tokens from the new lexer position.
-    this._advance(); // Consume original '/' token
-    this._advance(); // Consume what was peek, and get the next real token
+    this._advance(); // This will now load the token AFTER the regex.
     
-    // ESTree specification for a RegExp literal
     const node = {
         type: 'Literal',
-        value: null, // Typically a RegExp object, but null is fine for AST structure
+        value: null, 
         raw: `/${body}/${flags}`,
         regex: {
             pattern: body,
@@ -356,6 +354,7 @@ proto._parseRegExpLiteral = function() {
     
     return this._finishNode(node, s);
 };
+
 
 
 	

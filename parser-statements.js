@@ -233,17 +233,25 @@ proto._parseForStatement = function() {
         return this._finishNode({ type: 'SwitchCase', test, consequent }, s);
     };
 
+    // B"H
+// --- 
     proto._parseBreakStatement = function() {
         const s = this._startNode();
         this._advance(); // Consume 'break'
-        // According to ESTree spec, break statements can have a label, but we'll keep it simple.
-        this._consumeSemicolon();
-        return this._finishNode({ type: 'BreakStatement', label: null }, s);
-    };
-    
-    
-    // ADD THIS FINAL FUNCTION to the bottom of parser-statements.js
 
+        let label = null;
+        // THIS IS THE TIKKUN:
+        // Check if an identifier follows on the same line.
+        // If it does, it's a label for the break statement.
+        if (!this.currToken.hasLineTerminatorBefore && this._currTokenIs(TOKEN.IDENT)) {
+            label = this._parseIdentifier();
+        }
+
+        this._consumeSemicolon();
+        return this._finishNode({ type: 'BreakStatement', label: label }, s);
+    };
+
+// --- 
     proto._parseTryStatement = function() {
         const s = this._startNode();
         this._expect(TOKEN.TRY);
