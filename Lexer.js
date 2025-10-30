@@ -213,50 +213,85 @@ _readPrivateIdentifier() {
     return this._makeToken(TOKEN.PRIVATE_IDENT, '#' + ident, startColumn);
 }
 
-	// B"H
-// --- Start of Replacement for _skipWhitespace in Lexer.js ---
+	// B"H --- THE DEFINITIVE AND FINAL _skipWhitespace METHOD ---
 
-	_skipWhitespace() {
-		while (this.ch !== null) {
-			this._guard(); 
-			if (' \t'.includes(this.ch)) {
-				this._advance();
-			} else if ('\n\r'.includes(this.ch)) {
-				this.hasLineTerminatorBefore = true;
-				if (this.ch === '\r' && this._peek() === '\n') this._advance();
-				this._advance();
-				this.line++;
-				this.column = 0;
-			} else if (this.ch === '/' && this._peek() === '/') {
-				while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
-			} else if (this.ch === '/' && this._peek() === '*') {
-				this._advance(); this._advance();
-				while (this.ch !== null && (this.ch !== '*' || this._peek() !== '/')) {
-					if ('\n\r'.includes(this.ch)) {
-						this.hasLineTerminatorBefore = true;
-						if (this.ch === '\r' && this._peek() === '\n') this._advance();
-						this.line++;
-						this.column = 0;
-					}
-					this._advance();
-				}
-				if (this.ch !== null) { this._advance(); this._advance(); }
-            
-            // --- THIS IS THE TIKKUN (THE FIX) ---
-            // Recognize HTML-style open comments `<!--`
-            } else if (this.ch === '<' && this._peek() === '!' && this.source.substring(this.position, this.position + 4) === '<!--') {
-                while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
+_skipWhitespace() {
+    while (this.ch !== null) {
+        this._guard();
 
-            // Recognize HTML-style close comments `-->`, but ONLY at the start of a line.
-            } else if (this.column === 1 && this.ch === '-' && this._peek() === '-' && this.source.substring(this.position, this.position + 3) === '-->') {
-                 while (this.ch !== '\n' && this.ch !== '\r' && this.ch !== null) this._advance();
-            
+        // Handle simple whitespace
+        if (this.ch === ' ' || this.ch === '\t') {
+            this._advance();
+            continue;
+        }
 
-			} else {
-				break;
-			}
-		}
-	}
+        // The SINGLE SOURCE OF TRUTH for handling newlines.
+        // All single-line comment handlers will stop at a newline, allowing this block to run.
+        if (this.ch === '\n' || this.ch === '\r') {
+            this.hasLineTerminatorBefore = true;
+            if (this.ch === '\r' && this._peek() === '\n') this._advance(); // Handle CRLF
+            this._advance(); // Consume LF
+            this.line++;
+            this.column = 0;
+            continue;
+        }
+
+        // Handle single-line JS comments
+        if (this.ch === '/' && this._peek() === '/') {
+            // Consume until the line ends
+            while (this.ch !== null && this.ch !== '\n' && this.ch !== '\r') {
+                this._advance();
+            }
+            continue; // Let the main loop's newline handler do its job
+        }
+
+        // Handle multi-line JS comments
+        if (this.ch === '/' && this._peek() === '*') {
+            this._advance(); // Consume '/'
+            this._advance(); // Consume '*'
+            while (this.ch !== null && (this.ch !== '*' || this._peek() !== '/')) {
+                // Multi-line comments must handle newlines *within* them, so this is a special case.
+                if (this.ch === '\n' || this.ch === '\r') {
+                    this.hasLineTerminatorBefore = true;
+                    if (this.ch === '\r' && this._peek() === '\n') this._advance();
+                    this._advance();
+                    this.line++;
+                    this.column = 0;
+                    // Use 'continue' here to restart the inner 'while' loop for the comment
+                    continue;
+                }
+                this._advance();
+            }
+            if (this.ch !== null) { // Consume the closing '*/'
+                this._advance();
+                this._advance();
+            }
+            continue;
+        }
+
+        // Handle single-line HTML-style open comment
+        if (this.ch === '<' && this._peek() === '!' && this.source.substring(this.position, this.position + 4) === '<!--') {
+            // Consume until the line ends
+            while (this.ch !== null && this.ch !== '\n' && this.ch !== '\r') {
+                this._advance();
+            }
+            continue; // Let the main loop's newline handler do its job
+        }
+
+        // Handle single-line HTML-style close comment (only at start of line)
+        if (this.column === 1 && this.ch === '-' && this._peek() === '-' && this.source.substring(this.position, this.position + 3) === '-->') {
+            // Consume until the line ends
+            while (this.ch !== null && this.ch !== '\n' && this.ch !== '\r') {
+                this._advance();
+            }
+            continue; // Let the main loop's newline handler do its job
+        }
+
+        // If no whitespace or comment was found, this character is part of a token.
+        // Stop skipping whitespace.
+        break;
+    }
+}
 
 // --- 
 	_readTemplateHead() {

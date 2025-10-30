@@ -15,6 +15,9 @@ class MerkabahParser {
 		
 		this.recursionDepth = 0;
 	    this.maxRecursionDepth = 1500; 
+	    
+	    this.parsingTemplateExpression = false; // A flag to prevent recursion
+	    
 
 		this.currToken = this.l.nextToken();
 		this.peekToken = this.l.nextToken();

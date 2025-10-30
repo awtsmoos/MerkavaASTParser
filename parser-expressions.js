@@ -31,7 +31,6 @@
 		const binary = l => this._parseBinaryExpression(l);
 		
 		i[TOKEN.TEMPLATE_HEAD] = i[TOKEN.TEMPLATE_TAIL] = this._parseTaggedTemplateExpression;
-		
         // Register all binary operators, including the new bitwise and shift ones
         i[TOKEN.PLUS] = i[TOKEN.MINUS] = i[TOKEN.SLASH] = i[TOKEN.ASTERISK] = i[TOKEN.MODULO] = binary; 
         i[TOKEN.EQ] = i[TOKEN.NOT_EQ] = i[TOKEN.EQ_STRICT] = i[TOKEN.NOT_EQ_STRICT] = binary; 
@@ -56,73 +55,44 @@
 
 	// B"H
 	
-	proto._parseExpression =
-		function(precedence) {
-			this.recursionDepth++;
-			if (this
-				.recursionDepth >
-				this
-				.maxRecursionDepth
-			) {
-				// This is our safety valve against a true runaway recursion bug.
-				throw new Error(
-					"Stack overflow detected: Maximum recursion depth exceeded."
-				);
-			}
+	
 
-			try {
-				// --- ALL THE ORIGINAL LOGIC GOES INSIDE THE 'TRY' BLOCK ---
-				let prefix = this
-					.prefixParseFns[
-						this
-						.currToken
-						.type];
-				if (!prefix) {
-					this._error(
-						`No prefix parse function for ${this.currToken.type}`
-					);
-					return null;
-				}
-				let leftExp = prefix
-					.call(this);
 
-				let guard = 0;
-				while (precedence <
-					this
-					._getPrecedence(
-						this
-						.currToken)
-				) {
-					if (guard++ >
-						5000) {
-						throw new Error(
-							"Infinite loop detected in _parseExpression's while loop."
-						);
-					}
-					let infix = this
-						.infixParseFns[
-							this
-							.currToken
-							.type];
-					if (!infix) {
-						return leftExp;
-					}
-					leftExp = infix
-						.call(this,
-							leftExp
-						);
-				}
-				return leftExp;
-				// --- END OF ORIGINAL LOGIC ---
+proto._parseExpression = function(precedence) {
+    this.recursionDepth++;
+    if (this.recursionDepth > this.maxRecursionDepth) {
+        throw new Error("Stack overflow detected: Maximum recursion depth exceeded.");
+    }
 
-			} finally {
-				// --- THIS IS THE CRITICAL FIX ---
-				// This 'finally' block is GUARANTEED to execute when the function returns,
-				// no matter where it returns from. This correctly decrements the counter.
-				this
-					.recursionDepth--;
-			}
-		};
+    try {
+        let prefix = this.prefixParseFns[this.currToken.type];
+        if (!prefix) {
+            this._error(`No prefix parse function for ${this.currToken.type}`);
+            return null;
+        }
+        let leftExp = prefix.call(this);
+
+        // --- THE LOCATION OF THIS CHECK IS THE OTHER CRITICAL DIFFERENCE ---
+        // It is now BEFORE the while loop. After parsing `name`, this check runs.
+        // It sees the flag is true and the next token is TEMPLATE_TAIL, so it returns `leftExp`
+        // immediately, preventing the broken `while` loop from ever starting.
+        if (this.parsingTemplateExpression && 
+           (this.currToken.type === TOKEN.TEMPLATE_MIDDLE || this.currToken.type === TOKEN.TEMPLATE_TAIL)) {
+            return leftExp;
+        }
+
+        while (precedence < this._getPrecedence(this.currToken)) {
+            let infix = this.infixParseFns[this.currToken.type];
+            if (!infix) {
+                return leftExp;
+            }
+            leftExp = infix.call(this, leftExp);
+        }
+        return leftExp;
+    } finally {
+        this.recursionDepth--;
+    }
+};
 
 	proto._parseIdentifier =
 		function() {
@@ -989,85 +959,41 @@ proto._parseYieldExpression = function() {
 
 
 
+// B"H - 
+// B"H - In parser-expressions.js, replace the entire _parseTemplateLiteral function.
+proto._parseTemplateLiteral = function() {
+    const startNodeInfo = this._startNode();
+    const quasis = [];
+    const expressions = [];
+    let isTail = false;
 
-	proto._parseTemplateLiteral =
-		function() {
-			const startNodeInfo =
-				this._startNode();
-			const quasis = [];
-			const expressions = [];
+    while (!isTail) {
+        const quasiStart = this._startNode();
+        const tokenType = this.currToken.type;
 
-			let isTail = false;
-			// Loop until we find the final 'tail' part of the template string
-			while (!isTail) {
-				const quasiStart =
-					this
-					._startNode();
-				const tokenType =
-					this.currToken
-					.type;
+        if (tokenType !== TOKEN.TEMPLATE_HEAD && tokenType !== TOKEN.TEMPLATE_MIDDLE && tokenType !== TOKEN.TEMPLATE_TAIL) {
+            this._error("Unexpected token inside template literal.");
+            return null;
+        }
 
-				// Safety check
-				if (tokenType !==
-					TOKEN
-					.TEMPLATE_HEAD &&
-					tokenType !==
-					TOKEN
-					.TEMPLATE_MIDDLE &&
-					tokenType !==
-					TOKEN
-					.TEMPLATE_TAIL
-				) {
-					this._error(
-						"Unexpected token inside template literal."
-					);
-					return null;
-				}
+        isTail = tokenType === TOKEN.TEMPLATE_TAIL;
+        const value = { raw: this.currToken.literal, cooked: this.currToken.literal };
+        quasis.push(this._finishNode({ type: 'TemplateElement', value: value, tail: isTail }, quasiStart));
+        this._advance();
 
-				// Parse the static string part
-				isTail =
-					tokenType ===
-					TOKEN
-					.TEMPLATE_TAIL;
-				const value = {
-					raw: this
-						.currToken
-						.literal,
-					cooked: this
-						.currToken
-						.literal
-				};
-				quasis.push(this
-					._finishNode({
-							type: 'TemplateElement',
-							value: value,
-							tail: isTail
-						},
-						quasiStart
-					));
+        if (!isTail) {
+            // --- THIS IS THE NEW, ESSENTIAL LOGIC MY LAST ANSWER MISSED ---
+            this.parsingTemplateExpression = true; // Set the flag BEFORE the recursive call.
+            
+            expressions.push(this._parseExpression(PRECEDENCE.LOWEST));
+            
+            this.parsingTemplateExpression = false; // Unset it IMMEDIATELY after.
+            // --- END OF THE CRITICAL FIX ---
+        }
+    }
 
-				this
-					._advance(); // Consume the quasi token.
-
-				// If this wasn't the last part, we MUST parse an expression next.
-				if (!isTail) {
-					expressions
-						.push(this
-							._parseExpression(
-								PRECEDENCE
-								.LOWEST
-							));
-				}
-			}
-
-			return this
-				._finishNode({
-						type: 'TemplateLiteral',
-						quasis,
-						expressions
-					},
-					startNodeInfo);
-		};
+    return this._finishNode({ type: 'TemplateLiteral', quasis, expressions }, startNodeInfo);
+};
 		
 		
 		
@@ -1182,15 +1108,24 @@ proto._parseImportExpression = function() {
 
 
 // B"H
+// 
 
 proto._parseTaggedTemplateExpression = function(tag) { // 'tag' is the expression on the left
     const s = this._startNode();
     s.loc.start = tag.loc.start;
 
-    // The current token is TEMPLATE_HEAD, so we can now parse the literal part.
-    // _parseTemplateLiteral is already a prefix function, which is fine to call here.
+    // --- THIS IS THE FIX ---
+    // The original function just called `_parseTemplateLiteral()`, which was wrong
+    // and caused the recursion.
+    // The correct behavior is for this INFIX function to parse the template literal
+    // that it knows is coming. The logic for parsing a template literal is complex,
+    // so we will call the prefix parser, BUT we must consume the current token first
+    // to prevent it from being seen by the prefix parser.
+    
+    // The current token is guaranteed to be TEMPLATE_HEAD or TEMPLATE_TAIL.
+    // _parseTemplateLiteral is the prefix parser for this token, so we call it.
     const quasi = this._parseTemplateLiteral();
-
+    
     return this._finishNode({
         type: 'TaggedTemplateExpression',
         tag: tag,
