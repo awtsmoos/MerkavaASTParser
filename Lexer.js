@@ -1,5 +1,5 @@
 // B"H 
-// Lexer.js (Corrected and Final)
+//--- THE DEFINITIVE AND FINAL Lexer.js ---
 
 class Lexer {
 	constructor(s) {
@@ -11,18 +11,11 @@ class Lexer {
 		this.column = 0;
 		this.hasLineTerminatorBefore = false;
 		this.templateStack = [];
-
-		// --- THE DEFINITIVE FIX ---
-		// 1. Initialize the counter as an instance property. It is now correctly
-		//    reset every time `new Lexer()` is called.
 		this.op_count = 0;
-		// 2. Set a safe, high limit to catch true infinite loops.
-		this.max_ops = 25000; 
-
+		this.max_ops = 25000;
 		this._advance();
 	}
 
-	// A single, reliable guard function that throws an error to halt execution.
 	_guard() {
 		if (this.op_count++ > this.max_ops) {
 			throw new Error(
@@ -33,25 +26,19 @@ class Lexer {
 		}
 	}
 
-	// B"H - The rectified _advance method
-_advance() {
-    this._guard();
-    if (this.readPosition >= this.source.length) {
-        this.ch = null;
-    } else {
-        this.ch = this.source[this.readPosition];
-    }
-    this.position = this.readPosition;
-    this.readPosition++;
-
-    // --- THIS IS THE TIKKUN ---
-    // The column should only be incremented if the character is NOT a newline.
-    // The handling of newlines (incrementing line, resetting column) is the
-    // exclusive responsibility of the _skipWhitespace method.
-    if (this.ch !== '\n' && this.ch !== '\r') {
-        this.column++;
-    }
-}
+	_advance() {
+		this._guard();
+		if (this.readPosition >= this.source.length) {
+			this.ch = null;
+		} else {
+			this.ch = this.source[this.readPosition];
+		}
+		this.position = this.readPosition;
+		this.readPosition++;
+		if (this.ch !== '\n' && this.ch !== '\r') {
+			this.column++;
+		}
+	}
 
 	_peek() {
 		this._guard();
@@ -59,35 +46,100 @@ _advance() {
 		return this.source[this.readPosition];
 	}
 
-	// B"H - In Lexer.js, replace the _makeToken function
-_makeToken(type, literal, startColumn, startLine) {
-    this._guard();
-    const col = startColumn || this.column - (literal?.length || (this.ch === null ? 0 : 1));
-    const line = startLine || this.line;
-    
-    // --- THIS IS THE TIKKUN, PART 1 ---
-    // We are adding a `startIndex` property to every token.
-    // When _makeToken is called, `this.position` is the index of the
-    // first character of the token we are about to create. This gives
-    // the parser a perfect, unambiguous memory of where each token began.
-    return { 
-        type, 
-        literal, 
-        line: line, 
-        column: col, 
-        hasLineTerminatorBefore: this.hasLineTerminatorBefore, 
-        startIndex: this.position // Add this line
-    };
+	_makeToken(type, literal, startColumn, startLine) {
+		this._guard();
+		const col = startColumn || this.column - (literal?.length || (this.ch === null ? 0 : 1));
+		const line = startLine || this.line;
+		return {
+			type,
+			literal,
+			line: line,
+			column: col,
+			hasLineTerminatorBefore: this.hasLineTerminatorBefore,
+			startIndex: this.position
+		};
+	}
+
+	// -------------------------------------------------------------------------
+	// --- THE SINGLE, CORRECT, AND FINAL _skipWhitespace METHOD ---
+	// -------------------------------------------------------------------------
+	// B"H --- THE DEFINITIVE AND FINAL _skipWhitespace METHOD ---
+
+_skipWhitespace() {
+    while (this.ch !== null) {
+        this._guard();
+
+        // Handle simple whitespace
+        if (this.ch === ' ' || this.ch === '\t') {
+            this._advance();
+            continue;
+        }
+
+        // The SINGLE SOURCE OF TRUTH for handling newlines.
+        // All single-line comment handlers will stop at a newline, allowing this block to run.
+        if (this.ch === '\n' || this.ch === '\r') {
+            this.hasLineTerminatorBefore = true;
+            if (this.ch === '\r' && this._peek() === '\n') this._advance(); // Handle CRLF
+            this._advance(); // Consume LF
+            this.line++;
+            this.column = 0;
+            continue;
+        }
+
+        // Handle all single-line comment types.
+        const isJSComment = this.ch === '/' && this._peek() === '/';
+        const isHTMLOpenComment = this.ch === '<' && this._peek() === '!' && this.source.substring(this.position, this.position + 4) === '<!--';
+        const isHTMLCloseComment = this.column === 1 && this.ch === '-' && this._peek() === '-' && this.source.substring(this.position, this.position + 3) === '-->';
+
+        if (isJSComment || isHTMLOpenComment || isHTMLCloseComment) {
+            // This is the simple, robust logic: consume everything until the line ends.
+            // Do not try to parse anything inside the comment.
+            while (this.ch !== null && this.ch !== '\n' && this.ch !== '\r') {
+                this._advance();
+            }
+            // Now, loop again. The master newline handler above will take care of the state reset.
+            continue;
+        }
+
+        // Handle multi-line JS comments
+        if (this.ch === '/' && this._peek() === '*') {
+            this._advance(); // Consume '/'
+            this._advance(); // Consume '*'
+            while (this.ch !== null && (this.ch !== '*' || this._peek() !== '/')) {
+                // Multi-line comments are the only case that must handle newlines internally.
+                if (this.ch === '\n' || this.ch === '\r') {
+                    this.hasLineTerminatorBefore = true;
+                    if (this.ch === '\r' && this._peek() === '\n') this._advance();
+                    this._advance();
+                    this.line++;
+                    this.column = 0;
+                    continue; // Restart the inner comment-parsing loop
+                }
+                this._advance();
+            }
+            if (this.ch !== null) { // Consume closing '*/'
+                this._advance();
+                this._advance();
+            }
+            continue;
+        }
+
+        // If no whitespace or comment was found, it must be a token. Stop skipping.
+        break;
+    }
 }
+	// -------------------------------------------------------------------------
+	// --- END OF THE CORRECTED METHOD ---
+	// -------------------------------------------------------------------------
+
 
 	nextToken() {
 		this._guard();
 		this.hasLineTerminatorBefore = false;
-		
 		this._skipWhitespace();
 
-        const startLine = this.line;
-        const startColumn = this.column;
+		const startLine = this.line;
+		const startColumn = this.column;
 
 		if (this.ch === null) {
 			return this._makeToken(TOKEN.EOF, '', startColumn, startLine);
@@ -99,9 +151,6 @@ _makeToken(type, literal, startColumn, startLine) {
 
 		const c = this.ch;
 		let tok;
-
-		// B"H
-	
 
 		switch (c) {
 			case '=':
@@ -184,7 +233,7 @@ _makeToken(type, literal, startColumn, startLine) {
 			case ':': tok = this._makeToken(TOKEN.COLON, ':', startColumn); break;
 			case '"': case "'": return this._readString(c);
 			case '#': return this._readPrivateIdentifier();
-			
+
 			default:
 				if (this._isLetter(c)) {
 					const ident = this._readIdentifier();
@@ -196,128 +245,42 @@ _makeToken(type, literal, startColumn, startLine) {
 				}
 		}
 
-
 		this._advance();
 		return tok;
 	}
-	
-	
-	// Add this new function to Lexer.js
-_readPrivateIdentifier() {
-    this._advance(); // Consume '#'
-    const startColumn = this.column - 1;
-    const ident = this._readIdentifier();
-    if (!ident) {
-        return this._makeToken(TOKEN.ILLEGAL, '#', startColumn);
-    }
-    return this._makeToken(TOKEN.PRIVATE_IDENT, '#' + ident, startColumn);
-}
 
-	// B"H --- THE DEFINITIVE AND FINAL _skipWhitespace METHOD ---
+	_readPrivateIdentifier() {
+		this._advance(); // Consume '#'
+		const startColumn = this.column - 1;
+		const ident = this._readIdentifier();
+		if (!ident) {
+			return this._makeToken(TOKEN.ILLEGAL, '#', startColumn);
+		}
+		return this._makeToken(TOKEN.PRIVATE_IDENT, '#' + ident, startColumn);
+	}
 
-_skipWhitespace() {
-    while (this.ch !== null) {
-        this._guard();
-
-        // Handle simple whitespace
-        if (this.ch === ' ' || this.ch === '\t') {
-            this._advance();
-            continue;
-        }
-
-        // The SINGLE SOURCE OF TRUTH for handling newlines.
-        // All single-line comment handlers will stop at a newline, allowing this block to run.
-        if (this.ch === '\n' || this.ch === '\r') {
-            this.hasLineTerminatorBefore = true;
-            if (this.ch === '\r' && this._peek() === '\n') this._advance(); // Handle CRLF
-            this._advance(); // Consume LF
-            this.line++;
-            this.column = 0;
-            continue;
-        }
-
-        // Handle single-line JS comments
-        if (this.ch === '/' && this._peek() === '/') {
-            // Consume until the line ends
-            while (this.ch !== null && this.ch !== '\n' && this.ch !== '\r') {
-                this._advance();
-            }
-            continue; // Let the main loop's newline handler do its job
-        }
-
-        // Handle multi-line JS comments
-        if (this.ch === '/' && this._peek() === '*') {
-            this._advance(); // Consume '/'
-            this._advance(); // Consume '*'
-            while (this.ch !== null && (this.ch !== '*' || this._peek() !== '/')) {
-                // Multi-line comments must handle newlines *within* them, so this is a special case.
-                if (this.ch === '\n' || this.ch === '\r') {
-                    this.hasLineTerminatorBefore = true;
-                    if (this.ch === '\r' && this._peek() === '\n') this._advance();
-                    this._advance();
-                    this.line++;
-                    this.column = 0;
-                    // Use 'continue' here to restart the inner 'while' loop for the comment
-                    continue;
-                }
-                this._advance();
-            }
-            if (this.ch !== null) { // Consume the closing '*/'
-                this._advance();
-                this._advance();
-            }
-            continue;
-        }
-
-        // Handle single-line HTML-style open comment
-        if (this.ch === '<' && this._peek() === '!' && this.source.substring(this.position, this.position + 4) === '<!--') {
-            // Consume until the line ends
-            while (this.ch !== null && this.ch !== '\n' && this.ch !== '\r') {
-                this._advance();
-            }
-            continue; // Let the main loop's newline handler do its job
-        }
-
-        // Handle single-line HTML-style close comment (only at start of line)
-        if (this.column === 1 && this.ch === '-' && this._peek() === '-' && this.source.substring(this.position, this.position + 3) === '-->') {
-            // Consume until the line ends
-            while (this.ch !== null && this.ch !== '\n' && this.ch !== '\r') {
-                this._advance();
-            }
-            continue; // Let the main loop's newline handler do its job
-        }
-
-        // If no whitespace or comment was found, this character is part of a token.
-        // Stop skipping whitespace.
-        break;
-    }
-}
-
-// --- 
 	_readTemplateHead() {
 		this._guard();
 		this._advance();
 		return this._readTemplatePart('TEMPLATE_HEAD');
 	}
 
-	// In Lexer.js
-
 	_readTemplateMiddleOrTail() {
 		this._guard();
 		this._advance(); // Consume '}'
-		this.templateStack.pop(); // <-- CRITICAL FIX #1: POP here. We are EXITING an expression.
+		this.templateStack.pop();
 		return this._readTemplatePart('TEMPLATE_MIDDLE');
 	}
-	
+
 	_readTemplatePart(initialType) {
 		const p = this.position;
 		while (this.ch !== null && this.ch !== '`') {
-			this._guard(); // Guard the loop
+			this._guard();
 			if (this.ch === '$' && this._peek() === '{') {
 				const literal = this.source.slice(p, this.position);
 				this._advance(); // Consume '$'
 				this._advance(); // Consume '{'
-				this.templateStack.push(true); // <-- CRITICAL FIX #2: PUSH here. We are ENTERING an expression.
+				this.templateStack.push(true);
 				return this._makeToken(initialType, literal);
 			}
 			this._advance();
@@ -329,31 +292,7 @@ _skipWhitespace() {
 			this._advance(); // Consume '`'
 			return this._makeToken(TOKEN.TEMPLATE_TAIL, literal);
 		}
-		
-		return this._makeToken(TOKEN.ILLEGAL, `Unterminated template literal`);
-	}
-	
-	_readTemplatePart(initialType) {
-		const p = this.position;
-		while (this.ch !== null && this.ch !== '`') {
-			this._guard(); // Guard the loop
-			if (this.ch === '$' && this._peek() === '{') {
-				const literal = this.source.slice(p, this.position);
-				this._advance(); // Consume '$'
-				this._advance(); // Consume '{'
-				this.templateStack.push(true); // Enter expression part
-				return this._makeToken(initialType, literal);
-			}
-			this._advance();
-		}
 
-		const literal = this.source.slice(p, this.position);
-		if (this.ch === '`') {
-			this.templateStack.pop();
-			this._advance(); // Consume '`'
-			return this._makeToken(TOKEN.TEMPLATE_TAIL, literal);
-		}
-		
 		return this._makeToken(TOKEN.ILLEGAL, `Unterminated template literal`);
 	}
 
@@ -365,51 +304,36 @@ _skipWhitespace() {
 		return this.source.slice(p, this.position);
 	}
 
-	// In Lexer.js
-
-	// B"H
-// --- 
 	_readNumber() {
 		const p = this.position;
-
-		// Handle modern prefixes (0x, 0o, 0b) which are not in the test code but good practice.
-		// The main fix is handling '0o' and the 'n' suffix.
 		if (this.ch === '0' && this._peek() && 'xob'.includes(this._peek().toLowerCase())) {
-			this._advance(); // Consume the '0'
-			this._advance(); // Consume the prefix char 'x', 'o', or 'b'
-			// Read all alphanumeric characters following the prefix.
-			// This is a simplification but will work for the provided valid code.
+			this._advance();
+			this._advance();
 			while (this.ch !== null && this._isIdentifierChar(this.ch)) {
 				this._advance();
 			}
 		} else {
-			// Standard decimal/float parsing
 			while (this.ch !== null && this._isDigit(this.ch)) {
 				this._advance();
 			}
 			if (this.ch === '.' && this._isDigit(this._peek())) {
-				this._advance(); // Consume the '.'
+				this._advance();
 				while (this.ch !== null && this._isDigit(this.ch)) {
 					this._advance();
 				}
 			}
 		}
-		
-		// Handle BigInt suffix 'n' at the end, which is critical for your test code.
 		if (this.ch === 'n') {
 			this._advance();
 		}
-
 		return this.source.slice(p, this.position);
 	}
-
-// --- End of Replacement for _readNumber in Lexer.js ---
 
 	_readString(quote) {
 		this._advance(); // consume opening quote
 		const p = this.position;
 		while (this.ch !== quote && this.ch !== null) {
-			this._guard(); // Guard the loop
+			this._guard();
 			if (this.ch === '\\') this._advance(); // skip escaped char
 			this._advance();
 		}
