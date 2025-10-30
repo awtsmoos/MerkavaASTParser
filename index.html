@@ -42,6 +42,75 @@
         </div>
     </div>
     
+    <script type="awtsmoos" id="makor">
+    
+    //B"H
+
+// The Omega Test: A script designed to break parsers.
+export default class UltimateConfigurator {
+  // 1. Private static field initialized with an Immediately-Invoked Generator Function Expression
+  static #idGen = (function*() { let i = 0; while(true) yield i++; })();
+  
+  #id;
+  #settings = new Map();
+  onInit;
+
+  // 2. The ultimate constructor: nested destructuring with arrow function defaults
+  constructor({
+    id = UltimateConfigurator.#idGen.next().value,
+    onInit = async ({ customId = id } = {}) => {
+      // 10. Async arrow function with its own destructured default parameter
+      console.log(`Initializing with ID: ${customId}`);
+      await new Promise(r => r());
+      return { initialized: true };
+    }
+  } = {}) {
+    this.#id = id;
+    this.onInit = onInit;
+  }
+
+  // 3. An async method with try/catch and complex expressions
+  async apply(config) {
+    try {
+      // 4. Optional chaining, nullish coalescing, and a ternary all at once
+      const theme = config?.style?.theme ?? (config.legacy ? 'retro' : 'default');
+      this.#settings.set('theme', theme);
+      await this.onInit({ customId: this.#id });
+    } catch(e) {
+      console.error(`Failed to apply config for #${this.#id}: ${e?.message}`);
+    }
+  }
+
+  // 5. A generator method that uses delegated yield and complex syntax
+  * [Symbol.iterator]() {
+    // 6. A for...of loop over a Map, with destructuring
+    for (const [key, value] of this.#settings) {
+      // 7. Yielding a template literal with a nested arrow function
+      yield `[${key}]: ${(() => value?.toUpperCase() ?? 'N/A')()}`;
+    }
+    // 8. Delegated yield (yield*) to an array spread from the map's values
+    yield* [...this.#settings.values()];
+  }
+
+  // 9. A getter for a private field
+  get identifier() {
+    return this.#id;
+  }
+}
+
+// --- Execution of the Omega Test ---
+(async () => {
+  const config = new UltimateConfigurator();
+  await config.apply({ style: { theme: null }, legacy: false });
+
+  for (const setting of config) {
+    console.log(setting);
+  }
+})();
+    
+    
+    </script>
+    
     <!-- Load scripts in the correct, required order -->
     <script src="constants.js"></script>
     <script src="Lexer.js"></script>
@@ -56,6 +125,7 @@
     
    <!-- In index.html -->
 <script>
+var makor=document. getElementById("makor")
     document.addEventListener('DOMContentLoaded', () => {
         const jsInput = document.getElementById('js-input');
         const astOutput = document.getElementById('ast-output');
@@ -107,7 +177,9 @@
         parseButton.addEventListener('click', runParser);
         copyButton.addEventListener('click', copyAstToClipboard);
 
-        jsInput.value = `var f = 3;`;
+        jsInput.value = makor.innerHTML
+        
+       // `var f = 3;`;
         runParser();
     });
 </script>
