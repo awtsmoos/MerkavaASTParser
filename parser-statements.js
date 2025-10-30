@@ -72,25 +72,42 @@
 	
 	
 
+// B"H
+
+
 proto._parseForStatement = function() {
     const s = this._startNode();
     this._expect(TOKEN.FOR);
-    this._expect(TOKEN.LPAREN);
+
+    // --- THIS IS THE TIKKUN (THE FIX) ---
+    // Check for the optional 'await' keyword used in 'for await...of' loops.
+    let isAwait = false;
+    if (this._currTokenIs(TOKEN.AWAIT)) {
+        isAwait = true;
+        this._advance(); // Consume 'await'
+    }
+    // --- END OF TIKKUN ---
+
+    this._expect(TOKEN.LPAREN); // Now, we expect the parenthesis.
 
     let left = null;
     if (!this._currTokenIs(TOKEN.SEMICOLON)) {
         if (this._currTokenIs(TOKEN.LET) || this._currTokenIs(TOKEN.CONST) || this._currTokenIs(TOKEN.VAR)) {
-            // Provide the context: inForHead = true
-            left = this._parseVariableDeclaration(true); 
+            left = this._parseVariableDeclaration(true);
         } else {
             left = this._parseExpression(PRECEDENCE.LOWEST);
         }
     }
 
-    // Now, determine the kind of for loop by looking at the next token.
     if ((this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'of') || this._currTokenIs(TOKEN.IN)) {
-        // It is a for...in or for...of loop.
         const isForOf = this.currToken.literal === 'of';
+
+        // Add a check: 'for await...in' is invalid syntax.
+        if (isAwait && !isForOf) {
+            this._error("'for await' is only valid with 'of', not 'in'.");
+            return null;
+        }
+
         this._advance(); // consume 'in' or 'of'
 
         if (left.type === 'VariableDeclaration' && left.declarations.length > 1) {
@@ -102,10 +119,23 @@ proto._parseForStatement = function() {
         this._expect(TOKEN.RPAREN);
         const body = this._parseDeclaration();
         if (!left || !right || !body) return null;
-        return this._finishNode({ type: isForOf ? 'ForOfStatement' : 'ForInStatement', left, right, body, await: false }, s);
+        
+        // Pass the 'isAwait' flag to the final AST node.
+        return this._finishNode({ 
+            type: isForOf ? 'ForOfStatement' : 'ForInStatement', 
+            left, 
+            right, 
+            body, 
+            await: isAwait // The ESTree spec uses this 'await' property.
+        }, s);
     }
 
-    // If not for...in/of, it must be a C-style for loop.
+    // If it's a C-style loop, the 'await' keyword is illegal here.
+    if (isAwait) {
+        this._error("Unexpected 'await' in C-style for loop declaration.");
+        return null;
+    }
+
     this._expect(TOKEN.SEMICOLON);
     const test = this._currTokenIs(TOKEN.SEMICOLON) ? null : this._parseExpression(PRECEDENCE.LOWEST);
     this._expect(TOKEN.SEMICOLON);
@@ -115,6 +145,7 @@ proto._parseForStatement = function() {
     if (!body) return null;
     return this._finishNode({ type: 'ForStatement', init: left, test, update, body }, s);
 };
+
 
 
 
@@ -252,6 +283,40 @@ proto._parseForStatement = function() {
     
         return this._finishNode({ type: 'TryStatement', block, handler, finalizer }, s);
     };
+    
+    
+    // B"H
+// --- Add these two new methods to the bottom of parser-statements.js ---
+
+proto._parseLabeledStatement = function() {
+    const s = this._startNode();
+    const label = this._parseIdentifier(); // Parse the label (e.g., 'mainLoop')
+    this._expect(TOKEN.COLON);             // Consume the ':'
+    
+    // The body of a labeled statement is another statement.
+    const body = this._parseDeclaration(); 
+    
+    return this._finishNode({ type: 'LabeledStatement', label, body }, s);
+};
+
+proto._parseDoWhileStatement = function() {
+    const s = this._startNode();
+    this._expect(TOKEN.DO);
+    
+    // Parse the statement block.
+    const body = this._parseDeclaration();
+    
+    this._expect(TOKEN.WHILE);
+    this._expect(TOKEN.LPAREN);
+    const test = this._parseExpression(PRECEDENCE.LOWEST);
+    this._expect(TOKEN.RPAREN);
+    
+    this._consumeSemicolon(); // Optional semicolon at the end.
+    
+    return this._finishNode({ type: 'DoWhileStatement', body, test }, s);
+};
+
+// --- End of new methods ---
     
 
 })(MerkabahParser.prototype);

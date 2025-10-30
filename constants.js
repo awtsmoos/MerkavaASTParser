@@ -113,6 +113,8 @@ const PRECEDENCES = {
 	
 	[TOKEN.INCREMENT]: PRECEDENCE.POSTFIX,
     [TOKEN.DECREMENT]: PRECEDENCE.POSTFIX,
+    
+    [TOKEN.TEMPLATE_HEAD]: PRECEDENCE.CALL, // Tagged templates have the same precedence as function calls
 	
 
 };

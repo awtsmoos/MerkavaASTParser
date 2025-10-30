@@ -4,9 +4,8 @@ var times=0
 var max=300
 	proto.registerDeclarationParsers = function() { /* No registration needed */ };
 
-	// B"H --- In parser-declarations.js ---
+	// B"H 
 
-// REPLACE your _parseDeclaration function with this one.
 proto._parseDeclaration = function() {
     // This function is now the single source of truth for deciding
     // what kind of statement or declaration to parse.
@@ -29,26 +28,34 @@ proto._parseDeclaration = function() {
         case TOKEN.FOR: return this._parseForStatement();
         case TOKEN.WHILE: return this._parseWhileStatement();
         case TOKEN.RETURN: return this._parseReturnStatement();
-        
         case TOKEN.SWITCH: return this._parseSwitchStatement();
         case TOKEN.BREAK: return this._parseBreakStatement();
-        
-        
         case TOKEN.TRY: return this._parseTryStatement();
+        
+        // --- THIS IS THE TIKKUN (Part 1) ---
+        // Add a case to handle 'do-while' loops.
+        case TOKEN.DO: return this._parseDoWhileStatement();
 
         // Async Function Declaration check
         case TOKEN.ASYNC:
-    if (this._peekTokenIs(TOKEN.FUNCTION)) {
-        this._advance();
-        return this._parseFunction('declaration', true);
-    }
+            if (this._peekTokenIs(TOKEN.FUNCTION)) {
+                this._advance();
+                return this._parseFunction('declaration', true);
+            }
+        
         // Default Case
         default:
+            // --- THIS IS THE TIKKUN (Part 2) ---
+            // Check for a Labeled Statement (e.g., `myLabel:`) before
+            // assuming it's a standard expression.
+            if (this._currTokenIs(TOKEN.IDENT) && this._peekTokenIs(TOKEN.COLON)) {
+                return this._parseLabeledStatement();
+            }
             // If it's none of the above, it must be an expression statement.
             return this._parseExpressionStatement();
     }
 };
-    
+
 
 	proto._parseBindingPattern = function() {
 		if(times++>max) {
@@ -136,25 +143,46 @@ proto._parseProperty = function() {
 		return this._finishNode({ type: 'ObjectPattern', properties }, s);
 	};
 
-	proto._parseArrayPattern = function() {
-		const s = this._startNode();
-		this._expect(TOKEN.LBRACKET);
-		const elements = [];
-		while (!this._currTokenIs(TOKEN.RBRACKET) && !this._currTokenIs(TOKEN.EOF)) {
-			if (this._currTokenIs(TOKEN.COMMA)) {
-				elements.push(null);
-			} else {
-				const elem = this._parseBindingPattern();
-				if (!elem) return null;
-				elements.push(elem);
-			}
-			if (this._currTokenIs(TOKEN.COMMA)) this._advance();
-			else break;
-		}
-		this._expect(TOKEN.RBRACKET);
-		return this._finishNode({ type: 'ArrayPattern', elements }, s);
-	};
-	
+	// B"H in /Remember/MetkavaASTParser/parser-declarations.js
+
+// --- REPLACE your old _parseArrayPattern with this new, correct version ---
+proto._parseArrayPattern = function() {
+    const s = this._startNode();
+    this._expect(TOKEN.LBRACKET);
+    const elements = [];
+
+    while (!this._currTokenIs(TOKEN.RBRACKET) && !this._currTokenIs(TOKEN.EOF)) {
+        // Correctly handle elisions (empty slots) like `[,a]`
+        if (this._currTokenIs(TOKEN.COMMA)) {
+            this._advance();
+            elements.push(null);
+            continue;
+        }
+
+        // It's a pattern. This will correctly handle identifiers, {}, [], and `...`
+        const elem = this._parseBindingPattern();
+        if (!elem) return null;
+        elements.push(elem);
+
+        // --- THE TIKKUN ---
+        // A rest element MUST be the last element in an array pattern.
+        // After parsing it, we must break the loop.
+        if (elem.type === 'RestElement') {
+            break; 
+        }
+
+        // If it's not the end of the array, there must be a comma.
+        if (this._currTokenIs(TOKEN.COMMA)) {
+            this._advance();
+        } else {
+            break; // No comma means we are done with elements.
+        }
+    }
+
+    this._expect(TOKEN.RBRACKET);
+    return this._finishNode({ type: 'ArrayPattern', elements }, s);
+};
+
 	// In parser-declarations.js
 // B"H
 // 
@@ -323,26 +351,20 @@ proto._parseClassBody = function() {
 
 
 
+// B"H in /Remember/MetkavaASTParser/parser-declarations.js
+
+// REPLACE the entire old _parseClassElement function with this definitive, final version.
 proto._parseClassElement = function() {
     const s = this._startNode();
+    let isStatic = false, isAsync = false, isGenerator = false, kind = 'method', computed = false;
 
-    // Step 1: Initialize all possible attributes of the class member.
-    let isStatic = false;
-    let isAsync = false;
-    let isGenerator = false;
-    let kind = 'method'; // Default kind
-    let computed = false;
-
-    // Step 2: Create a loop to consume all possible prefixes/modifiers.
-    // This allows the parser to correctly handle `static async * myMethod...`
+    // This loop correctly gathers all modifiers.
     while (true) {
         if (this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'static') {
             isStatic = true;
             this._advance();
             continue;
         }
-        // --- THIS FIXES THE `async apply()` PROBLEM ---
-        // We see `async`, set the flag, and continue parsing the SAME element.
         if (this.currToken.type === TOKEN.ASYNC) {
             isAsync = true;
             this._advance();
@@ -353,7 +375,6 @@ proto._parseClassElement = function() {
             this._advance();
             continue;
         }
-        // Check for get/set after other modifiers.
         const isGetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'get';
         const isSetter = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'set';
         if (isGetter || isSetter) {
@@ -361,29 +382,33 @@ proto._parseClassElement = function() {
             this._advance();
             continue;
         }
-        // If no more modifiers are found, break the loop.
         break;
     }
 
-    // Step 3: Parse the key (the name) of the class member.
+    // --- THIS IS THE TIKKUN (THE FIX) ---
+    // After collecting modifiers, we check for a static initialization block.
+    // This is the ONLY place a `{` is allowed without a method name.
+    if (isStatic && this._currTokenIs(TOKEN.LBRACE)) {
+        const body = this._parseBlockStatement();
+        // ESTree spec defines this node type as 'StaticBlock'.
+        return this._finishNode({ type: 'StaticBlock', body }, s);
+    }
+    
+    // If it wasn't a static block, parsing continues as before.
     let key;
-    // --- THIS FIXES THE `[Symbol.iterator]` PROBLEM ---
-    // We now correctly check for a computed property name.
     if (this._currTokenIs(TOKEN.LBRACKET)) {
         computed = true;
-        this._advance(); // Consume '['
-        key = this._parseExpression(PRECEDENCE.LOWEST); // Parse the expression inside
-        this._expect(TOKEN.RBRACKET); // Consume ']'
+        this._advance();
+        key = this._parseExpression(PRECEDENCE.LOWEST);
+        this._expect(TOKEN.RBRACKET);
     } else if (this._currTokenIs(TOKEN.PRIVATE_IDENT)) {
         key = this._parsePrivateIdentifier();
     } else {
-        // For any other case, it must be a standard identifier (or keyword acting as one).
         key = this._parseIdentifier();
     }
     if (!key) return null;
 
-    // Step 4: Distinguish between a class field and a method.
-    // If the key is NOT followed by '(', it's a field (PropertyDefinition).
+    // Distinguish between a class field and a method.
     if (!this._currTokenIs(TOKEN.LPAREN)) {
         let value = null;
         if (this._currTokenIs(TOKEN.ASSIGN)) {
@@ -391,43 +416,23 @@ proto._parseClassElement = function() {
             value = this._parseExpression(PRECEDENCE.ASSIGNMENT);
         }
         this._consumeSemicolon();
-        return this._finishNode({ 
-            type: 'PropertyDefinition', 
-            key, 
-            value, 
-            static: isStatic, 
-            computed 
-        }, s);
+        return this._finishNode({ type: 'PropertyDefinition', key, value, static: isStatic, computed }, s);
     }
 
-    // --- If we get here, it is a MethodDefinition ---
+    // It is a MethodDefinition.
     if (key.name === 'constructor' && kind !== 'get' && kind !== 'set') {
         kind = 'constructor';
     }
-
-    // Step 5: Parse the function part of the method.
-    const params = this._parseParametersList(); // This helper correctly parses all parameters.
+    const params = this._parseParametersList();
     const body = this._parseBlockStatement();
     if (!body) return null;
 
-    const func = {
-        type: 'FunctionExpression',
-        id: null,
-        params,
-        body,
-        async: isAsync,     // Apply the collected async flag here.
-        generator: isGenerator // Apply the collected generator flag here.
-    };
+    const func = { type: 'FunctionExpression', id: null, params, body, async: isAsync, generator: isGenerator };
 
-    return this._finishNode({ 
-        type: 'MethodDefinition', 
-        key, 
-        value: func, 
-        kind, 
-        static: isStatic, 
-        computed              // Apply the collected computed flag here.
-    }, s);
+    return this._finishNode({ type: 'MethodDefinition', key, value: func, kind, static: isStatic, computed }, s);
 };
+
+
 
 
 
@@ -626,28 +631,38 @@ proto._parseMethodDefinition = function() {
 
 
 
-// ADD THIS NEW HELPER FUNCTION to parser-declarations.js
-proto._parseBindingWithDefault = function() {
-    const s = this._startNode();
-    const left = this._parseBindingPattern(); // First, parse the parameter name/pattern
-    if (!left) return null;
+// B"H in /Remember/MetkavaASTParser/parser-declarations.js
 
-    // NOW, check if it's followed by a default value
-    if (this._currTokenIs(TOKEN.ASSIGN)) {
-        this._advance(); // consume '='
-        const right = this._parseExpression(PRECEDENCE.ASSIGNMENT); // Parse the expression for the default value
-        // Wrap the whole thing in an AssignmentPattern node
-        return this._finishNode({ type: 'AssignmentPattern', left, right }, s);
+// MODIFY the _parseBindingPattern function.
+proto._parseBindingPattern = function() {
+    if(times++>max) {
+    throw "wow what are u"
     }
 
-    return left; // If there was no '=', just return the simple parameter node
+    // --- THIS IS THE TIKKUN ---
+    // Add this new check at the beginning. If we see `...`, we know it's a rest element.
+    if (this._currTokenIs(TOKEN.DOTDOTDOT)) {
+        return this._parseRestElement();
+    }
+    
+    // If it's not `...`, the rest of the function proceeds exactly as it did before.
+    if (this._currTokenIs(TOKEN.LBRACE)) return this._parseObjectPattern();
+    if (this._currTokenIs(TOKEN.LBRACKET)) return this._parseArrayPattern();
+    if (!this._currTokenIs(TOKEN.IDENT)) {
+        this._error("Expected an identifier, object pattern, or array pattern for binding.");
+        return null;
+    }
+    const s = this._startNode();
+    const identNode = { type: 'Identifier', name: this.currToken.literal };
+    this._advance();
+    return this._finishNode(identNode, s);
 };
 
 
 
 // ADD THIS NEW HELPER FUNCTION to parser-declarations.js
 // Its only job is to parse a list of parameters.
-proto._parseParametersList = function() {
+proto._parseParametersListOld = function() {
     const params = [];
     this._expect(TOKEN.LPAREN);
     if (!this._currTokenIs(TOKEN.RPAREN)) {
@@ -672,6 +687,36 @@ proto._parseParametersList = function() {
 
 // It contains the pure logic for parsing a comma-separated list of binding patterns.
 
+// B"H --- In parser-declarations.js
+// REPLACE the _parseParametersList function with this more robust version.
+
+proto._parseParametersList = function() {
+    const params = [];
+    this._expect(TOKEN.LPAREN);
+
+    // This loop structure is more robust and correctly handles the edge case.
+    if (!this._currTokenIs(TOKEN.RPAREN)) {
+        do {
+            // This function correctly parses a parameter that might have
+            // a pattern and/or a default value.
+            const param = this._parseBindingWithDefault();
+            if (!param) return null; // Propagate errors correctly.
+            params.push(param);
+
+            // Explicitly check for the comma *after* parsing a full parameter.
+            // If there isn't one, we must be at the end of the list.
+            if (!this._currTokenIs(TOKEN.COMMA)) {
+                break;
+            }
+
+            // Only advance if a comma was found.
+            this._advance();
+        } while (true);
+    }
+
+    this._expect(TOKEN.RPAREN);
+    return params;
+};
 
 proto._parseParameterListContents = function() {
     const params = [];
@@ -688,6 +733,57 @@ proto._parseParameterListContents = function() {
     } while (true);
 
     return params;
+};
+
+
+
+
+
+// B"H
+ 
+
+proto._parseBindingWithDefault = function() {
+    const s = this._startNode();
+    
+    // First, parse the parameter name or pattern (e.g., `id`, `{config}`, `[a,b]`).
+    const left = this._parseBindingPattern();
+    if (!left) return null;
+
+    // NOW, check if it's followed by a default value.
+    if (this._currTokenIs(TOKEN.ASSIGN)) {
+        this._advance(); // consume '='
+        
+        // Parse the expression for the default value (e.g., `{}`).
+        const right = this._parseExpression(PRECEDENCE.ASSIGNMENT);
+        
+        // Wrap the whole thing in an AssignmentPattern node, which is the correct AST representation.
+        return this._finishNode({ type: 'AssignmentPattern', left, right }, s);
+    }
+
+    // If there was no '=', just return the simple parameter node we parsed.
+    return left;
+};
+
+
+
+// B"H
+
+
+
+
+proto._parseRestElement = function() {
+    const s = this._startNode();
+    this._expect(TOKEN.DOTDOTDOT); // Consume the '...'
+
+    // The argument of a rest element must be a bindable pattern (usually an identifier).
+    const argument = this._parseBindingPattern();
+    if (!argument) {
+        this._error("Expected an identifier or pattern after '...' for rest element.");
+        return null;
+    }
+
+    // According to the ESTree spec, this node is a 'RestElement'.
+    return this._finishNode({ type: 'RestElement', argument: argument }, s);
 };
 
 

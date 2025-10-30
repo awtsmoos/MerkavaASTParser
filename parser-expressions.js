@@ -8,6 +8,10 @@
 				.prefixParseFns,
 				i = this
 				.infixParseFns;
+				
+			i[TOKEN.TEMPLATE_HEAD] = this._parseTaggedTemplateExpression;
+				
+			p[TOKEN.SLASH] = this._parseRegExpLiteral; // Handle '/' in a prefix position
 			p[TOKEN.IDENT] = this
 				._parseIdentifier,
 				p[TOKEN.NUMBER] = p[
@@ -285,6 +289,76 @@
 				type: "Super"
 			}, t)
 	};
+	
+	
+	// B"H
+	
+
+
+proto._parseRegExpLiteral = function() {
+    const s = this._startNode();
+    
+    // The current token is '/'. We need to read from the raw source to get the rest.
+    const lexer = this.l;
+    let body = '';
+    let flags = '';
+    let inCharSet = false;
+    
+    // Start reading from the character immediately after the initial '/'
+    let i = lexer.position + 1;
+
+    // Loop through the source to find the body of the regex
+    while (i < lexer.source.length) {
+        const char = lexer.source[i];
+        
+        if (char === '\\') { // Handle simple escape sequences
+            body += char + lexer.source[i + 1];
+            i += 2;
+            continue;
+        }
+        if (char === '[') inCharSet = true;
+        if (char === ']') inCharSet = false;
+
+        if (char === '/' && !inCharSet) { // Found the closing '/'
+            i++; // Move past it
+            break;
+        }
+        
+        body += char;
+        i++;
+    }
+
+    // After the body, parse the flags
+    while (i < lexer.source.length && 'gimsuy'.includes(lexer.source[i])) {
+        flags += lexer.source[i];
+        i++;
+    }
+
+    // CRITICAL STEP: Manually advance the lexer's internal position past the regex we just consumed.
+    lexer.position = i - 1;
+    lexer.readPosition = i;
+    lexer.ch = lexer.source[lexer.position] || null;
+
+    // Now, force the parser to re-read tokens from the new lexer position.
+    this._advance(); // Consume original '/' token
+    this._advance(); // Consume what was peek, and get the next real token
+    
+    // ESTree specification for a RegExp literal
+    const node = {
+        type: 'Literal',
+        value: null, // Typically a RegExp object, but null is fine for AST structure
+        raw: `/${body}/${flags}`,
+        regex: {
+            pattern: body,
+            flags: flags
+        }
+    };
+    
+    return this._finishNode(node, s);
+};
+
+
+	
 	proto._parsePrefixExpression =
 		function() {
 			const t = this
@@ -761,28 +835,50 @@ proto._parseAsyncExpression = function() {
 					body: i
 				}, t)
 		};
-	proto._parseNewExpression =
-		function() {
-			const t = this
-				._startNode();
-			this._expect(TOKEN.NEW);
-			const e = this
-				._parseExpression(
-					PRECEDENCE
-					.MEMBER);
-			let s = [];
-			return this
-				._currTokenIs(TOKEN
-					.LPAREN) && (s =
-					this
-					._parseArgumentsList()
-				), this
-				._finishNode({
-					type: "NewExpression",
-					callee: e,
-					arguments: s
-				}, t)
-		};
+	// B"H
+
+	proto._parseNewExpression = function() {
+		const s = this._startNode();
+		this._expect(TOKEN.NEW);
+
+		// --- THIS IS THE TIKKUN (THE FIX) ---
+		// Check specifically for the 'new.target' meta-property.
+		if (this._currTokenIs(TOKEN.DOT)) {
+			this._advance(); // Consume '.'
+			
+			// Manually create the 'new' identifier node for the AST.
+			const meta = { type: 'Identifier', name: 'new', loc: s.loc };
+			
+			if (!this._currTokenIs(TOKEN.IDENT) || this.currToken.literal !== 'target') {
+				this._error("Expected 'target' after 'new.'.");
+				return null;
+			}
+			
+			// Parse the 'target' identifier.
+			const property = this._parseIdentifier();
+			
+			// According to ESTree, this is a MetaProperty node.
+			return this._finishNode({ type: 'MetaProperty', meta: meta, property: property }, s);
+		}
+		
+		// 
+
+		// If it wasn't 'new.target', proceed with the original logic for a constructor call.
+		const callee = this._parseExpression(PRECEDENCE.MEMBER);
+		let args = [];
+		if (this._currTokenIs(TOKEN.LPAREN)) {
+			args = this._parseArgumentsList();
+		}
+		
+		return this._finishNode({
+			type: "NewExpression",
+			callee: callee,
+			arguments: args
+		}, s);
+	};
+
+// --- 
+	
 	proto._parseCallExpression =
 		function(t) {
 			const e = this
@@ -1094,6 +1190,24 @@ proto._parseImportExpression = function() {
 };
 
 
+
+
+// B"H
+
+proto._parseTaggedTemplateExpression = function(tag) { // 'tag' is the expression on the left
+    const s = this._startNode();
+    s.loc.start = tag.loc.start;
+
+    // The current token is TEMPLATE_HEAD, so we can now parse the literal part.
+    // _parseTemplateLiteral is already a prefix function, which is fine to call here.
+    const quasi = this._parseTemplateLiteral();
+
+    return this._finishNode({
+        type: 'TaggedTemplateExpression',
+        tag: tag,
+        quasi: quasi
+    }, s);
+};
 
 })(MerkabahParser
 	.prototype

@@ -268,25 +268,43 @@ _readPrivateIdentifier() {
 
 	// In Lexer.js
 
+	// B"H
+// --- 
 	_readNumber() {
 		const p = this.position;
-		// Read the integer part
-		while (this.ch !== null && this._isDigit(this.ch)) {
-			this._advance();
-		}
-		
-		// Check for a decimal part
-		if (this.ch === '.' && this._isDigit(this._peek())) {
-			this._advance(); // Consume the '.'
-			
-			// Read the fractional part
+
+		// Handle modern prefixes (0x, 0o, 0b) which are not in the test code but good practice.
+		// The main fix is handling '0o' and the 'n' suffix.
+		if (this.ch === '0' && this._peek() && 'xob'.includes(this._peek().toLowerCase())) {
+			this._advance(); // Consume the '0'
+			this._advance(); // Consume the prefix char 'x', 'o', or 'b'
+			// Read all alphanumeric characters following the prefix.
+			// This is a simplification but will work for the provided valid code.
+			while (this.ch !== null && this._isIdentifierChar(this.ch)) {
+				this._advance();
+			}
+		} else {
+			// Standard decimal/float parsing
 			while (this.ch !== null && this._isDigit(this.ch)) {
 				this._advance();
 			}
+			if (this.ch === '.' && this._isDigit(this._peek())) {
+				this._advance(); // Consume the '.'
+				while (this.ch !== null && this._isDigit(this.ch)) {
+					this._advance();
+				}
+			}
+		}
+		
+		// Handle BigInt suffix 'n' at the end, which is critical for your test code.
+		if (this.ch === 'n') {
+			this._advance();
 		}
 
 		return this.source.slice(p, this.position);
 	}
+
+// --- End of Replacement for _readNumber in Lexer.js ---
 
 	_readString(quote) {
 		this._advance(); // consume opening quote
