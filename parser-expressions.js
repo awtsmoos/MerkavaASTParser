@@ -657,78 +657,125 @@ proto._parseGroupedOrArrowExpression = function() {
 					properties: e
 				}, t)
 		};
-	proto._parseObjectProperty =
-		function() {
-			const t = this
-				._startNode();
-			if (this._currTokenIs(
-					TOKEN.DOTDOTDOT
-				)) return this
-				._parseSpreadElement();
-			let e = !1,
-				s;
-			if (this._currTokenIs(
-					TOKEN.LBRACKET))
-				e = !0, this
-				._advance(), s =
-				this
-				._parseExpression(
-					PRECEDENCE
-					.LOWEST), this
-				._expect(TOKEN
-					.RBRACKET);
-			else s = this.currToken
-				.type === TOKEN
-				.STRING || this
-				.currToken.type ===
-				TOKEN.NUMBER ? this
-				._parseLiteral() :
-				this
-				._parseIdentifier();
-			if (this._currTokenIs(
-					TOKEN.COLON)) {
-				this._expect(TOKEN
-					.COLON);
-				const i = this
-					._parseExpression(
-						PRECEDENCE
-						.ASSIGNMENT
-					);
-				return this
-					._finishNode({
-						type: "Property",
-						key: s,
-						value: i,
-						kind: "init",
-						method:
-							!1,
-						shorthand:
-							!1,
-						computed: e
-					}, t)
-			}
-			return "Identifier" ===
-				s.type && (this
-					._currTokenIs(
-						TOKEN.COMMA
-					) || this
-					._currTokenIs(
-						TOKEN.RBRACE
-					)) ? this
-				._finishNode({
-					type: "Property",
-					key: s,
-					value: s,
-					kind: "init",
-					method: !1,
-					shorthand: !
-						0,
-					computed: !1
-				}, t) : (this
-					._error(
-						"Invalid object property syntax. Expected ':' or shorthand."
-					), null)
-		};
+		
+		
+		
+		
+	// B"H
+
+// B"H
+
+
+proto._parseObjectProperty = function() {
+    const s = this._startNode();
+
+    if (this._currTokenIs(TOKEN.DOTDOTDOT)) {
+        return this._parseSpreadElement();
+    }
+
+    let kind = 'init';
+    let isAsync = false;
+    let isGenerator = false;
+    let key;
+
+    // --- THIS IS THE FINAL TIKKUN ---
+    // This refined logic correctly distinguishes between a method named 'get' and a getter keyword.
+    // A 'get' or 'set' is only a keyword if it's followed by something that is NOT a parenthesis or colon.
+    const isGetterKeyword = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'get' && this.peekToken.type !== TOKEN.LPAREN && this.peekToken.type !== TOKEN.COLON;
+    const isSetterKeyword = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'set' && this.peekToken.type !== TOKEN.LPAREN && this.peekToken.type !== TOKEN.COLON;
+
+    // Consume modifiers if they exist.
+    if (this.currToken.type === TOKEN.ASYNC) {
+        // `async (` is a method named async. `async prop(` is an async method.
+        if (this.peekToken.type !== TOKEN.LPAREN && this.peekToken.type !== TOKEN.COLON) {
+           isAsync = true;
+           this._advance();
+        }
+    }
+    if (this._currTokenIs(TOKEN.ASTERISK)) {
+        isGenerator = true;
+        this._advance();
+    }
+    if (isGetterKeyword || isSetterKeyword) {
+        kind = this.currToken.literal;
+        this._advance();
+    }
+    
+    // Now, parse the key.
+    let computed = false;
+    if (this._currTokenIs(TOKEN.LBRACKET)) {
+        computed = true;
+        this._advance();
+        key = this._parseExpression(PRECEDENCE.LOWEST);
+        this._expect(TOKEN.RBRACKET);
+    } else {
+        key = (this.currToken.type === TOKEN.STRING || this.currToken.type === TOKEN.NUMBER)
+            ? this._parseLiteral()
+            : this._parseIdentifier();
+    }
+    if (!key) return null;
+
+    // Decide what follows the key.
+    
+    // Case A: Method-like forms (Method, Getter, Setter)
+    if (this._currTokenIs(TOKEN.LPAREN)) {
+        const params = this._parseParametersList();
+        const body = this._parseBlockStatement();
+        const value = { type: 'FunctionExpression', id: null, params, body, async: isAsync, generator: isGenerator };
+
+        return this._finishNode({
+            type: 'Property',
+            key: key,
+            value: value,
+            kind: kind,
+            method: (kind === 'init'),
+            shorthand: false,
+            computed: computed
+        }, s);
+    }
+    
+    // Case B: Regular `key: value` pair. No modifiers allowed here.
+    if (isAsync || isGenerator || kind !== 'init') {
+        this._error(`Object property with async, generator, get, or set must be a method and have a parameter list.`);
+        return null;
+    }
+
+    if (this._currTokenIs(TOKEN.COLON)) {
+        this._advance();
+        const value = this._parseExpression(PRECEDENCE.ASSIGNMENT);
+        return this._finishNode({
+            type: 'Property',
+            key: key,
+            value: value,
+            kind: 'init',
+            method: false,
+            shorthand: false,
+            computed: computed
+        }, s);
+    }
+
+    // Case C: Shorthand property like `{ myKey }`.
+    if (key.type === 'Identifier' && !computed) {
+        return this._finishNode({
+            type: 'Property',
+            key: key,
+            value: key,
+            kind: 'init',
+            method: false,
+            shorthand: true,
+            computed: false
+        }, s);
+    }
+
+    this._error("Invalid object property syntax. Expected ':', '(', or shorthand property.");
+    return null;
+};
+
+
+		
+		
+		
+		
 	proto._parseSpreadElement =
 		function() {
 			const t = this

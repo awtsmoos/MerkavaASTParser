@@ -2,6 +2,7 @@
 // --- The Sefirot and the Aleph-Bet of Syntax ---
 //constants.js
 const TOKEN = {
+
     EOF: 'EOF', ILLEGAL: 'ILLEGAL',
     
     MODULO: 'MODULO', // Add this
@@ -14,6 +15,9 @@ const TOKEN = {
     PRIVATE_IDENT: 'PRIVATE_IDENT',
     
      STRING: 'STRING',
+     
+     
+     WITH: 'WITH',
     TEMPLATE_HEAD: 'TEMPLATE_HEAD', TEMPLATE_MIDDLE: 'TEMPLATE_MIDDLE', TEMPLATE_TAIL: 'TEMPLATE_TAIL',
 
     // Operators
@@ -57,6 +61,9 @@ const KEYWORDS = {
     'async': TOKEN.ASYNC, 'await': TOKEN.AWAIT, 'yield': TOKEN.YIELD,
     'typeof': TOKEN.TYPEOF, 'instanceof': TOKEN.INSTANCEOF, 'in': TOKEN.IN,
     'try': TOKEN.TRY, 'catch': TOKEN.CATCH, 'finally': TOKEN.FINALLY, 'throw': TOKEN.THROW,
+    
+    
+    'with': TOKEN.WITH, //the final frontier
 };
 
 const PRECEDENCE = {

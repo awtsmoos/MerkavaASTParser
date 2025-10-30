@@ -224,7 +224,8 @@ export default (class EinSof_Construct {
     
     <script type="Awtsmoos" id="makor2">
     
-    // B"H --- The Keter Test: The Crown of Emanations ---
+    // B"H 
+    //--- The Keter Test: The Crown of Emanations ---
 // A script designed to stress-test the deepest levels of a JS parser's consciousness.
 
 // 1. Stress Point: Extending an Immediately-Invoked Class Expression.
@@ -318,6 +319,88 @@ export default class TranscendentalReducer extends (class ChaosMatrix extends Ar
     
     </script>
     
+    
+    <script type="Awtsmoos" id="makor4">
+    // B"H --- The Azilut Test: The World of Emanation ---
+// A script that abuses deprecated, obscure, and lexically treacherous syntax.
+// WARNING: This is not a demonstration of good practice. It is a rite of passage for a parser.
+
+// 1. Stress Point: Re-exporting the default export from one module as a named export from this one.
+export { default as FoundationalEssence } from './foundations.js';
+
+// The Nexus: A Proxy designed to create a deceptive, infinite scope.
+const Nexus = new Proxy({
+    // A real property to prove the proxy can pass through.
+    REALITY: 'Grounded', 
+    
+    // The wellspring of infinite, illusory properties.
+    get(target, prop, receiver) {
+        if (prop in target) {
+            return Reflect.get(...arguments);
+        }
+        // For any property that doesn't exist, return a function that describes its own non-existence.
+        return () => `The emanation '${String(prop)}' was invoked from the boundless Nexus.`;
+    },
+    
+    // The `has` trap makes the `with` statement's scope checks even more bizarre.
+    // It will claim that *any* property exists within it.
+    has(target, prop) {
+        return true;
+    }
+});
+
+export default class MetaphysicalEngine {
+    #core;
+
+    constructor(core) { this.#core = core; }
+
+    // 2. Stress Point: The infamous, deprecated `with` statement.
+    // This dynamically injects the `Nexus` proxy into the scope chain.
+    invokeWithNexus() {
+        let result;
+
+        // The parser must correctly parse the 'with' statement and its body.
+        with (Nexus) {
+            // `REALITY` exists on the Nexus and will be found.
+            result = REALITY; 
+            
+            // `non_existent_property` does NOT exist, but the `has` trap says it does.
+            // The `get` trap will then be invoked, returning a function, which is then called.
+            console.log( non_existent_property() );
+
+            // 3. Stress Point: A labeled block statement (non-loop).
+            // A truly obscure piece of JavaScript grammar.
+            OuterBlock: {
+                if (result === 'Grounded') {
+                    break OuterBlock; // The parser must handle breaking to a non-loop label.
+                }
+                result = 'Ungrounded';
+            }
+        }
+        return result;
+    }
+
+    // 4. Stress Point: The `Function` constructor, a form of eval.
+    // The parser only needs to handle the `new Function(...)` syntax itself.
+    static createFromSource(sourceString) {
+        // This creates a function from a raw string at runtime.
+        const dynamicFn = new Function('config', `return "Executed from string with: " + config.id`);
+        return dynamicFn({ id: sourceString });
+    }
+
+    // 5. Stress Point: A generator delegating (`yield*`) to a proxied async iterator.
+    // This tests the parser's understanding of delegation syntax with a dynamic target.
+    * emanateFrom(dynamicTarget) {
+        yield 'Beginning Emanation...';
+        // The parser doesn't know what `dynamicTarget` is, but it must correctly
+        // parse the `yield*` syntax assuming it's an iterable.
+        yield* dynamicTarget;
+        yield 'Emanation Complete.';
+    }
+}
+    
+    </script>
+    
     <!-- Load scripts in the correct, required order -->
     <script src="constants.js"></script>
     <script src="Lexer.js"></script>
@@ -332,7 +415,7 @@ export default class TranscendentalReducer extends (class ChaosMatrix extends Ar
     
    <!-- In index.html -->
 <script>
-var makor=document. getElementById("makor3")
+var makor=document. getElementById("makor4")
     document.addEventListener('DOMContentLoaded', () => {
         const jsInput = document.getElementById('js-input');
         const astOutput = document.getElementById('ast-output');

@@ -345,8 +345,25 @@ proto._parseContinueStatement = function() {
     
     
     
+    // B"H
+
+proto._parseWithStatement = function() {
+    const s = this._startNode();
+    this._expect(TOKEN.WITH);
+    this._expect(TOKEN.LPAREN);
     
+    const object = this._parseExpression(PRECEDENCE.LOWEST);
     
+    this._expect(TOKEN.RPAREN);
+    
+    const body = this._parseDeclaration(); // The body can be a block or single statement
+    
+    if (!object || !body) return null;
+
+    return this._finishNode({ type: 'WithStatement', object, body }, s);
+};
+
+// --- 
     
     
     

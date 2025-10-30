@@ -32,6 +32,9 @@ proto._parseDeclaration = function() {
         case TOKEN.BREAK: return this._parseBreakStatement();
         case TOKEN.TRY: return this._parseTryStatement();
         
+        
+        case TOKEN.WITH: return this._parseWithStatement();
+        
         case TOKEN.CONTINUE: return this._parseContinueStatement();
         
         // --- THIS IS THE TIKKUN (Part 1) ---
@@ -564,54 +567,80 @@ proto._parseMethodDefinition = function() {
 	    return this._finishNode({ type: 'ImportDeclaration', specifiers, source }, s);
 	};
 
-	proto._parseExportDeclaration = function() {
+	// B"H
+
+proto._parseExportDeclaration = function() {
     const s = this._startNode();
     this._expect(TOKEN.EXPORT);
 
-    // This block handles `export default ...`
+    // Case 1: `export default ...`
     if (this._currTokenIs(TOKEN.DEFAULT)) {
         this._advance(); // Consume 'default'
-
         let declaration;
-        // This switch is the key. It decides what to parse next.
         switch (this.currToken.type) {
             case TOKEN.FUNCTION:
                 declaration = this._parseFunction('expression');
                 break;
             case TOKEN.CLASS:
-                // When we see `export default class`, it is a Class DECLARATION.
-                // We must call the declaration parser, not the expression parser.
                 declaration = this._parseClassDeclaration();
                 break;
-                
-                
             case TOKEN.ASYNC:
-                 // Check if it's `export default async function...`
                  if (this._peekTokenIs(TOKEN.FUNCTION)) {
-                    this._advance(); // consume 'async'
+                    this._advance(); 
                     declaration = this._parseFunction('expression', true);
                  } else {
-                    // This is the fallback for an async expression
                     declaration = this._parseExpression(PRECEDENCE.ASSIGNMENT);
                  }
                 break;
-            // CRITICAL FIX: This default case handles `export default 3`, `export default a + b`, etc.
             default:
                 declaration = this._parseExpression(PRECEDENCE.ASSIGNMENT);
                 break;
         }
-        
         if (!declaration) {
             this._error("Expected an expression or declaration after 'export default'");
             return null;
         }
-
-        // Expressions might be followed by a semicolon.
         this._consumeSemicolon();
         return this._finishNode({ type: 'ExportDefaultDeclaration', declaration }, s);
     }
+    
+    // --- THIS IS THE TIKKUN (THE FIX) ---
+    // Case 2: `export { ... } from '...'` or `export * from '...'`
+    if (this._currTokenIs(TOKEN.LBRACE) || this._currTokenIs(TOKEN.ASTERISK)) {
+        const specifiers = [];
+        let source = null;
+        
+        if (this._currTokenIs(TOKEN.ASTERISK)) {
+            // This handles `export * from './module.js'`
+            const specStart = this._startNode();
+            this._advance(); // consume '*'
+            specifiers.push(this._finishNode({ type: 'ExportAllDeclaration', exported: null }, specStart));
+        } else {
+            // This handles `export { spec1, spec2 }`
+            this._expect(TOKEN.LBRACE);
+            while (!this._currTokenIs(TOKEN.RBRACE) && !this._currTokenIs(TOKEN.EOF)) {
+                specifiers.push(this._parseExportSpecifier());
+                if (this._currTokenIs(TOKEN.COMMA)) {
+                    this._advance();
+                } else {
+                    break;
+                }
+            }
+            this._expect(TOKEN.RBRACE);
+        }
 
-    // This block handles named exports like `export const x = 5;`
+        // Check for the optional `from '...'` clause
+        if (this._currTokenIs(TOKEN.FROM)) {
+            this._advance(); // consume 'from'
+            source = this._parseLiteral();
+        }
+
+        this._consumeSemicolon();
+        return this._finishNode({ type: 'ExportNamedDeclaration', declaration: null, specifiers, source }, s);
+    }
+    // --- END OF FIX ---
+
+    // Case 3: `export const/let/var/class/function ...`
     let declaration;
     switch (this.currToken.type) {
         case TOKEN.LET: case TOKEN.CONST: case TOKEN.VAR:
@@ -624,7 +653,7 @@ proto._parseMethodDefinition = function() {
             declaration = this._parseClassDeclaration();
             break;
         default:
-            this._error("Unexpected token after export. Expected a named declaration.");
+            this._error("Unexpected token after export. Expected a declaration or '{'.");
             return null;
     }
     
@@ -633,9 +662,8 @@ proto._parseMethodDefinition = function() {
 
 
 
-// B"H in /Remember/MetkavaASTParser/parser-declarations.js
 
-// MODIFY the _parseBindingPattern function.
+
 proto._parseBindingPattern = function() {
     if(times++>max) {
     throw "wow what are u"
@@ -787,6 +815,41 @@ proto._parseRestElement = function() {
     // According to the ESTree spec, this node is a 'RestElement'.
     return this._finishNode({ type: 'RestElement', argument: argument }, s);
 };
+
+
+// B"H
+
+proto._parseExportSpecifier = function() {
+    const s = this._startNode();
+    
+    // An export specifier's local name can be a regular identifier OR the 'default' keyword.
+    // We must handle 'default' specially as it's not a normal IDENT token.
+    let local;
+    if (this.currToken.type === TOKEN.IDENT || this.currToken.literal === 'default') {
+        local = this._parseIdentifier(); // This works even for 'default' if we are careful
+    } else {
+        this._error("Expected identifier or 'default' in export specifier.");
+        return null;
+    }
+
+    let exported = local; // By default, the exported name is the same.
+
+    // Check for aliasing: `... as AnotherName`
+    if (this._currTokenIs(TOKEN.AS)) {
+        this._advance(); // consume 'as'
+        exported = this._parseIdentifier();
+    }
+
+    return this._finishNode({ type: 'ExportSpecifier', local, exported }, s);
+};
+
+
+
+
+
+
+
+
 
 
 })(MerkabahParser.prototype);
