@@ -385,36 +385,37 @@ proto._parseGroupedOrArrowExpression = function() {
 					right: o
 				}, e)
 		};
-	proto
-		._parseAssignmentExpression =
-		function(t) {
-			if ("Identifier" !== t
-				.type &&
-				"MemberExpression" !==
-				t.type) return this
-				._error(
-					"Invalid left-hand side in assignment."
-				), null;
-			const e = this
-				._startNode();
-			e.loc.start = t.loc
-				.start;
-			const s = this.currToken
-				.literal;
-			this._advance();
-			const i = this
-				._parseExpression(
-					PRECEDENCE
-					.ASSIGNMENT - 1
-				);
-			return this
-				._finishNode({
-					type: "AssignmentExpression",
-					operator: s,
-					left: t,
-					right: i
-				}, e)
-		};
+	// B"H
+// --- The Unification: The rectified _parseAssignmentExpression function ---
+
+proto._parseAssignmentExpression = function(left) {
+    // First, use our new lens to reveal the true nature of the left-hand side.
+    const pattern = this._convertExpressionToPattern(left);
+
+    // If the conversion fails, it means the left side is truly invalid (e.g., a number literal).
+    // This new check replaces the old, rigid guard clause.
+    if (!pattern) {
+        this._error("Invalid left-hand side in assignment.");
+        return null;
+    }
+
+    // The rest of the function proceeds with this newfound clarity.
+    const s = this._startNode();
+    s.loc.start = pattern.loc.start;
+    const operator = this.currToken.literal;
+    this._advance();
+    const right = this._parseExpression(PRECEDENCE.ASSIGNMENT - 1);
+
+    return this._finishNode({
+        type: "AssignmentExpression",
+        operator: operator,
+        left: pattern, // Use the enlightened pattern
+        right: right
+    }, s);
+};
+
+
+
 	proto
 		._parseConditionalExpression =
 		function(t) {
@@ -553,11 +554,10 @@ proto._parseGroupedOrArrowExpression = function() {
 		
 		
 		
-		
-	// B"H
-
 // B"H
-
+// --- The Final Tikkun for _parseObjectProperty ---
+// This version integrates the wisdom to handle the "get" ambiguity
+// with the previous fix for default value assignments.
 
 proto._parseObjectProperty = function() {
     const s = this._startNode();
@@ -569,33 +569,21 @@ proto._parseObjectProperty = function() {
     let kind = 'init';
     let isAsync = false;
     let isGenerator = false;
+    let computed = false;
     let key;
 
-    // --- THIS IS THE FINAL TIKKUN ---
-    // This refined logic correctly distinguishes between a method named 'get' and a getter keyword.
-    // A 'get' or 'set' is only a keyword if it's followed by something that is NOT a parenthesis or colon.
+    // --- THE RECTIFICATION ---
+    // Bestow the wisdom of foresight. "get" is only a keyword if it is an identifier
+    // AND the token that follows it is NOT a parenthesis or a colon.
     const isGetterKeyword = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'get' && this.peekToken.type !== TOKEN.LPAREN && this.peekToken.type !== TOKEN.COLON;
     const isSetterKeyword = this.currToken.type === TOKEN.IDENT && this.currToken.literal === 'set' && this.peekToken.type !== TOKEN.LPAREN && this.peekToken.type !== TOKEN.COLON;
 
-    // Consume modifiers if they exist.
-    if (this.currToken.type === TOKEN.ASYNC) {
-        // `async (` is a method named async. `async prop(` is an async method.
-        if (this.peekToken.type !== TOKEN.LPAREN && this.peekToken.type !== TOKEN.COLON) {
-           isAsync = true;
-           this._advance();
-        }
-    }
-    if (this._currTokenIs(TOKEN.ASTERISK)) {
-        isGenerator = true;
-        this._advance();
-    }
-    if (isGetterKeyword || isSetterKeyword) {
-        kind = this.currToken.literal;
-        this._advance();
-    }
+    // Consume modifiers ONLY if they are truly acting as modifiers.
+    if (this.currToken.type === TOKEN.ASYNC && this.peekToken.type !== TOKEN.COLON) { isAsync = true; this._advance(); }
+    if (this._currTokenIs(TOKEN.ASTERISK)) { isGenerator = true; this._advance(); }
+    if (isGetterKeyword || isSetterKeyword) { kind = this.currToken.literal; this._advance(); }
     
-    // Now, parse the key.
-    let computed = false;
+    // Now, parse the property's key.
     if (this._currTokenIs(TOKEN.LBRACKET)) {
         computed = true;
         this._advance();
@@ -608,60 +596,56 @@ proto._parseObjectProperty = function() {
     }
     if (!key) return null;
 
-    // Decide what follows the key.
-    
-    // Case A: Method-like forms (Method, Getter, Setter)
+    // Check if it's a method (identified by the parenthesis).
     if (this._currTokenIs(TOKEN.LPAREN)) {
         const params = this._parseParametersList();
         const body = this._parseBlockStatement();
         const value = { type: 'FunctionExpression', id: null, params, body, async: isAsync, generator: isGenerator };
 
         return this._finishNode({
-            type: 'Property',
-            key: key,
-            value: value,
-            kind: kind,
-            method: (kind === 'init'),
-            shorthand: false,
-            computed: computed
+            type: 'Property', key: key, value: value, kind: kind,
+            method: (kind === 'init'), shorthand: false, computed: computed
         }, s);
     }
     
-    // Case B: Regular `key: value` pair. No modifiers allowed here.
-    if (isAsync || isGenerator || kind !== 'init') {
-        this._error(`Object property with async, generator, get, or set must be a method and have a parameter list.`);
-        return null;
-    }
-
+    // Check if it's a standard `key: value` pair.
     if (this._currTokenIs(TOKEN.COLON)) {
+        if (isAsync || isGenerator || kind !== 'init') {
+             this._error(`Modifiers like async, get, or set must be followed by a method definition.`);
+             return null;
+        }
         this._advance();
         const value = this._parseExpression(PRECEDENCE.ASSIGNMENT);
         return this._finishNode({
-            type: 'Property',
-            key: key,
-            value: value,
-            kind: 'init',
-            method: false,
-            shorthand: false,
-            computed: computed
+            type: 'Property', key: key, value: value, kind: 'init',
+            method: false, shorthand: false, computed: computed
         }, s);
     }
 
-    // Case C: Shorthand property like `{ myKey }`.
-    if (key.type === 'Identifier' && !computed) {
-        return this._finishNode({
-            type: 'Property',
-            key: key,
-            value: key,
-            kind: 'init',
-            method: false,
-            shorthand: true,
-            computed: false
-        }, s);
+    // If it's none of the above, it must be a shorthand property.
+    // Shorthand properties cannot have modifiers or be computed.
+    if (key.type !== 'Identifier' || computed || isAsync || isGenerator || kind !== 'init') {
+        this._error("Invalid object property syntax. Expected ':', '(', or a valid shorthand property.");
+        return null;
     }
-
-    this._error("Invalid object property syntax. Expected ':', '(', or shorthand property.");
-    return null;
+    
+    let value = key;
+    let shorthand = true;
+    
+    // This preserves the fix for the Omega Test (shorthand with default value).
+    if (this._currTokenIs(TOKEN.ASSIGN)) {
+        shorthand = false;
+        const assignStart = this._startNode();
+        assignStart.loc.start = key.loc.start;
+        this._advance();
+        const right = this._parseExpression(PRECEDENCE.ASSIGNMENT);
+        value = this._finishNode({ type: 'AssignmentPattern', left: key, right: right }, assignStart);
+    }
+    
+    return this._finishNode({
+        type: 'Property', key: key, value: value, kind: 'init',
+        method: false, shorthand: shorthand, computed: computed
+    }, s);
 };
 
 
@@ -1155,6 +1139,47 @@ proto._parseTaggedTemplateExpression = function(tag) { // 'tag' is the expressio
         quasi: quasi
     }, s);
 };
+// B"H
+// --- The Illumination: A new helper function to reveal the true nature of a pattern ---
+
+proto._convertExpressionToPattern = function(node) {
+    if (!node) return null;
+    switch (node.type) {
+        // These types are already valid patterns or can be part of one.
+        case 'Identifier':
+        case 'MemberExpression':
+        case 'ObjectPattern': // Already a pattern
+        case 'ArrayPattern':  // Already a pattern
+            return node;
+
+        // An ObjectExpression in this context is truly an ObjectPattern.
+        case 'ObjectExpression':
+            node.type = 'ObjectPattern';
+            // Recursively convert the values of its properties.
+            for (const prop of node.properties) {
+                prop.value = this._convertExpressionToPattern(prop.value);
+            }
+            return node;
+
+        // An ArrayExpression in this context is truly an ArrayPattern.
+        case 'ArrayExpression':
+            node.type = 'ArrayPattern';
+            // Recursively convert its elements.
+            node.elements = node.elements.map(el => this._convertExpressionToPattern(el));
+            return node;
+
+        // If we find any other type of expression, it is an invalid assignment target.
+        default:
+            // This is where the error for `1 = 2` would be caught.
+            return null;
+    }
+}; 
+
+
+
+
+
+
 
 })(MerkavahParser
 	.prototype

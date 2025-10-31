@@ -18,6 +18,22 @@
         button { background-color: #66fcf1; color: #0b0c10; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 5px; transition: background-color 0.3s ease, box-shadow 0.3s ease; }
         button:hover { background-color: #45a29e; box-shadow: 0 0 10px #66fcf1; }
         label { margin-bottom: 5px; font-size: 18px; color: #66fcf1; }
+   
+   /* Add this new rule for the select element */
+        select {
+            background-color: #0b0c10;
+            color: #66fcf1;
+            border: 1px solid #45a29e;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            font-family: 'Roboto Mono', monospace;
+            -webkit-appearance: none; /* Removes default browser styling */
+            appearance: none;
+        }
+   
     </style>
 </head>
 <body>
@@ -26,12 +42,25 @@
     <h3>Unveiling the hidden soul of ES6 JavaScript.</h3>
 
     <div class="container">
+    
+    
         <div class="io-box">
             <label for="js-input">Paste JavaScript Emanation Here:</label>
             <textarea id="js-input" spellcheck="false"></textarea>
         </div>
         
+        <select id="script-selector" title="Choose a test script">
+        <option value="makor">The Ratzon Hamuchlat Test</option>
+        <option value="makor2">The Keter Test</option>
+        <option value="makor4">The Azilut Test</option>
+        <option value="makor5">The Tzimtzum Test</option>
+        <option value="makor6">The Tiferet Test</option>
+        <option value="makor7" selected>The Ein Sof Test</option>
+    </select>
+        
         <div class="controls">
+	        
+        <br>
             <button id="parse-btn">Parse the Emanation</button>
             <button id="copy-btn">Copy the Tree</button>
         </div>
@@ -46,7 +75,7 @@
     
     //B"H
 
-// The Omega Test: A script designed to break parsers.
+// The Ratzon Hamuchlat Test: A script designed to break parsers.
 export default class UltimateConfigurator {
   // 1. Private static field initialized with an Immediately-Invoked Generator Function Expression
   static #idGen = (function*() { let i = 0; while(true) yield i++; })();
@@ -706,35 +735,29 @@ export default (class EinSof_Construct {
     <script src="parser-statements.js"></script>
     <script src="parser-declarations.js"></script>
     
-   <!-- In index.html -->
+
+
 <script>
-
-
-var makor=document. getElementById("makor7")
     document.addEventListener('DOMContentLoaded', () => {
+        // Get references to all the necessary HTML elements
         const jsInput = document.getElementById('js-input');
         const astOutput = document.getElementById('ast-output');
         const parseButton = document.getElementById('parse-btn');
         const copyButton = document.getElementById('copy-btn');
+        const scriptSelector = document.getElementById('script-selector'); // New: Get the dropdown
 
-        // This is the simple, correct, and robust way to run the parser.
-        // It creates a new instance every time, ensuring a perfectly clean state.
+        // This is the function that runs the parser
         const runParser = () => {
             astOutput.textContent = '';
             astOutput.classList.remove('error');
             const sourceCode = jsInput.value;
             
-            // Re-create the parser from scratch on every run.
-            // This is clean and avoids all the state issues and race conditions.
             const parser = new MerkavahParser(sourceCode);
             
-            // The registration functions MUST be called on the new instance
-            // to attach the parsing logic from the component files.
             parser.registerExpressionParsers();
             parser.registerStatementParsers();
             parser.registerDeclarationParsers();
 
-            // Now, parse.
             const ast = parser.parse();
 
             if (parser.errors.length > 0) {
@@ -759,13 +782,25 @@ var makor=document. getElementById("makor7")
                 });
         };
 
+        // --- NEW FUNCTIONALITY ---
+        // A new function to load the selected script into the textarea
+        const loadScript = () => {
+            const selectedId = scriptSelector.value; // Get the ID from the dropdown's value
+            const scriptElement = document.getElementById(selectedId);
+            if (scriptElement) {
+                jsInput.value = scriptElement.innerHTML.trim(); // Load the script's content
+                runParser(); // Automatically parse the new script
+            }
+        };
+
+        // Add event listeners to the controls
         parseButton.addEventListener('click', runParser);
         copyButton.addEventListener('click', copyAstToClipboard);
+        scriptSelector.addEventListener('change', loadScript); // New: When the dropdown changes, load the script
 
-        jsInput.value = makor.innerHTML
-        
-       // `var f = 3;`;
-        runParser();
+        // --- INITIALIZATION ---
+        // Load the initially selected script when the page first loads
+        loadScript();
     });
 </script>
 
