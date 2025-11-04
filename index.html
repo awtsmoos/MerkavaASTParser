@@ -723,22 +723,12 @@ export default (class EinSof_Construct {
 
 
     
-    <!-- Load scripts in the correct, required order -->
-    <script src="constants.js"></script>
-    <script src="Lexer.js"></script>
-
-    <!-- The core parser MUST be loaded first -->
     <script src="parser-core.js"></script>
 
-    <!-- Load the component files that extend the parser's prototype -->
-    <script src="parser-expressions.js"></script>
-    <script src="parser-statements.js"></script>
-    <script src="parser-declarations.js"></script>
     
 
-
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         // Get references to all the necessary HTML elements
         const jsInput = document.getElementById('js-input');
         const astOutput = document.getElementById('ast-output');
@@ -747,10 +737,12 @@ export default (class EinSof_Construct {
         const scriptSelector = document.getElementById('script-selector'); // New: Get the dropdown
 
         // This is the function that runs the parser
-        const runParser = () => {
+        const runParser = async () => {
             astOutput.textContent = '';
             astOutput.classList.remove('error');
             const sourceCode = jsInput.value;
+            
+            const MerkavahParser = await window.MerkavahParserPromise;
             
             const parser = new MerkavahParser(sourceCode);
             
@@ -784,12 +776,12 @@ export default (class EinSof_Construct {
 
         // --- NEW FUNCTIONALITY ---
         // A new function to load the selected script into the textarea
-        const loadScript = () => {
+        const loadScript = async () => {
             const selectedId = scriptSelector.value; // Get the ID from the dropdown's value
             const scriptElement = document.getElementById(selectedId);
             if (scriptElement) {
                 jsInput.value = scriptElement.innerHTML.trim(); // Load the script's content
-                runParser(); // Automatically parse the new script
+                await runParser(); // Automatically parse the new script
             }
         };
 
