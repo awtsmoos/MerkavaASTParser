@@ -1,5 +1,8 @@
 // In parser-expressions.js
 // B"H --- Parsing Expressions [DEFINITIVE, UNIVERSAL & COMPLETE] ---
+(function() {
+    const proto = MerkavahParser.prototype;
+
 (function(proto) {
 	// B"H
 // --- Start of Replacement for registerExpressionParsers in parser-expressions.js ---
@@ -1183,4 +1186,5 @@ proto._convertExpressionToPattern = function(node) {
 
 })(MerkavahParser
 	.prototype
-	); // This is the end of the file
+	);
+})();

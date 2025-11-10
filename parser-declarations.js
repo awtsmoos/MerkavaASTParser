@@ -1,4 +1,7 @@
-// B"H --- Parsing Declarations [DEFINITIVE & COMPLETE] ---
+// B"H 
+//--- Parsing Declarations [DEFINITIVE & COMPLETE] ---
+(function() {
+    const proto = MerkavahParser.prototype;
 (function(proto) {
 var times=0
 var max=300
@@ -853,3 +856,4 @@ proto._parseExportSpecifier = function() {
 
 
 })(MerkavahParser.prototype);
+})()

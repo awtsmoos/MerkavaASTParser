@@ -1,4 +1,7 @@
 // B"H --- Parsing Statements [DEFINITIVE, CORRECT & COMPLETE] ---
+(function() {
+    const proto = MerkavahParser.prototype;
+
 (function(proto) {
 	proto.registerStatementParsers = function() { /* No registration needed */ };
 
@@ -377,3 +380,4 @@ proto._parseWithStatement = function() {
     
 
 })(MerkavahParser.prototype);
+})();

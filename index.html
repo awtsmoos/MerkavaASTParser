@@ -726,73 +726,88 @@ export default (class EinSof_Construct {
     <script src="parser-core.js"></script>
 
     
-
 <script>
-    document.addEventListener('DOMContentLoaded', async () => {
+    document.addEventListener('DOMContentLoaded', () => {
         // Get references to all the necessary HTML elements
         const jsInput = document.getElementById('js-input');
         const astOutput = document.getElementById('ast-output');
         const parseButton = document.getElementById('parse-btn');
         const copyButton = document.getElementById('copy-btn');
-        const scriptSelector = document.getElementById('script-selector'); // New: Get the dropdown
+        const scriptSelector = document.getElementById('script-selector');
 
-        // This is the function that runs the parser
-        const runParser = async () => {
-            astOutput.textContent = '';
-            astOutput.classList.remove('error');
-            const sourceCode = jsInput.value;
-            
-            const MerkavahParser = await window.MerkavahParserPromise;
-            
-            const parser = new MerkavahParser(sourceCode);
-            
-            parser.registerExpressionParsers();
-            parser.registerStatementParsers();
-            parser.registerDeclarationParsers();
+        // --- THE BIG CHANGE IS HERE ---
+        // We wait for the promise exported by parser-core.js to resolve.
+        // The code inside the .then() block will only run after the parser
+        // and all its dependencies have been successfully loaded.
+        window.MerkavahParserPromise.then(MerkavahParser => {
+            console.log("B'H -- The Merkava is ready for ascent.");
 
-            const ast = parser.parse();
+            // This is the function that runs the parser
+            const runParser = () => {
+                astOutput.textContent = '';
+                astOutput.classList.remove('error');
+                const sourceCode = jsInput.value;
+                
+                // Now we can safely use the MerkavahParser class
+                const parser = new MerkavahParser(sourceCode);
+                
+                // Register all the parsing methods
+                parser.registerExpressionParsers();
+                parser.registerStatementParsers();
+                parser.registerDeclarationParsers();
 
-            if (parser.errors.length > 0) {
-                const errorMessage = "The vessels have shattered. The following transgressions were observed:\n\n" + parser.errors.join('\n');
-                astOutput.textContent = errorMessage;
-                astOutput.classList.add('error');
-            } else {
-                astOutput.textContent = JSON.stringify(ast, null, 2);
-            }
-        };
+                // Run the main parse method
+                const ast = parser.parse();
 
-        const copyAstToClipboard = () => {
-            if (!astOutput.textContent || astOutput.classList.contains('error')) {
-                alert('There is no valid AST to copy.');
-                return;
-            }
-            navigator.clipboard.writeText(astOutput.textContent)
-                .then(() => alert('AST copied to clipboard!'))
-                .catch(err => {
-                    console.error('Failed to copy AST: ', err);
-                    alert('Could not copy AST. See the console for details.');
-                });
-        };
+                // Display the results or the errors
+                if (parser.errors.length > 0) {
+                    const errorMessage = "The vessels have shattered. The following transgressions were observed:\n\n" + parser.errors.join('\n');
+                    astOutput.textContent = errorMessage;
+                    astOutput.classList.add('error');
+                } else {
+                    astOutput.textContent = JSON.stringify(ast, null, 2);
+                }
+            };
 
-        // --- NEW FUNCTIONALITY ---
-        // A new function to load the selected script into the textarea
-        const loadScript = async () => {
-            const selectedId = scriptSelector.value; // Get the ID from the dropdown's value
-            const scriptElement = document.getElementById(selectedId);
-            if (scriptElement) {
-                jsInput.value = scriptElement.innerHTML.trim(); // Load the script's content
-                await runParser(); // Automatically parse the new script
-            }
-        };
+            // This function copies the AST to the clipboard
+            const copyAstToClipboard = () => {
+                if (!astOutput.textContent || astOutput.classList.contains('error')) {
+                    alert('There is no valid AST to copy.');
+                    return;
+                }
+                navigator.clipboard.writeText(astOutput.textContent)
+                    .then(() => alert('AST copied to clipboard!'))
+                    .catch(err => {
+                        console.error('Failed to copy AST: ', err);
+                        alert('Could not copy AST. See the console for details.');
+                    });
+            };
 
-        // Add event listeners to the controls
-        parseButton.addEventListener('click', runParser);
-        copyButton.addEventListener('click', copyAstToClipboard);
-        scriptSelector.addEventListener('change', loadScript); // New: When the dropdown changes, load the script
+            // This function loads the selected script into the textarea
+            const loadScript = () => {
+                const selectedId = scriptSelector.value;
+                const scriptElement = document.getElementById(selectedId);
+                if (scriptElement) {
+                    jsInput.value = scriptElement.innerHTML.trim();
+                    runParser(); // Automatically parse the newly loaded script
+                }
+            };
 
-        // --- INITIALIZATION ---
-        // Load the initially selected script when the page first loads
-        loadScript();
+            // Add event listeners to the controls now that we know the parser is ready
+            parseButton.addEventListener('click', runParser);
+            copyButton.addEventListener('click', copyAstToClipboard);
+            scriptSelector.addEventListener('change', loadScript);
+
+            // --- INITIALIZATION ---
+            // Load and parse the initially selected script
+            loadScript();
+
+        }).catch(err => {
+            // This .catch() block will execute if the parser fails to load
+            console.error("A cosmic error occurred. The Merkava could not be assembled:", err);
+            astOutput.textContent = "FATAL ERROR: The parser script failed to load. Check the browser console for details.";
+            astOutput.classList.add('error');
+        });
     });
 </script>
 

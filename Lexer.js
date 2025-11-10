@@ -1,6 +1,12 @@
 // B"H 
 //--- THE DEFINITIVE AND FINAL Lexer.js ---
-
+(function(root, factory) {
+    if (typeof module === 'object' && module.exports) {
+        module.exports = factory(require('./constants.js'));
+    } else {
+        root.Lexer = factory(root.MerkavahConstants);
+    }
+}(typeof self !== 'undefined' ? self : this, function({ TOKEN, KEYWORDS }) {
 class Lexer {
 	constructor(s) {
 		this.source = s;
@@ -434,3 +440,5 @@ _readNumber() {
 	_isDigit(c) { return c >= '0' && c <= '9'; }
 	_isIdentifierChar(c) { return c !== null && (this._isLetter(c) || this._isDigit(c)); }
 }
+return Lexer;
+}));

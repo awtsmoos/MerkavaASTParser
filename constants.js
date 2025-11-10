@@ -1,6 +1,13 @@
 // B"H
 // --- The Sefirot and the Aleph-Bet of Syntax ---
 //constants.js
+(function(root, factory) {
+    if (typeof module === 'object' && module.exports) {
+        module.exports = factory();
+    } else {
+        root.MerkavahConstants = factory();
+    }
+}(typeof self !== 'undefined' ? self : this, function() {
 const TOKEN = {
 
 
@@ -174,3 +181,5 @@ const PRECEDENCES = {
     [TOKEN.TEMPLATE_HEAD]: PRECEDENCE.CALL,
     [TOKEN.TEMPLATE_TAIL]: PRECEDENCE.CALL
 };
+return { TOKEN, KEYWORDS, PRECEDENCE, PRECEDENCES };
+}));
