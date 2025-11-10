@@ -1,6 +1,7 @@
 // B"H 
 //--- Parsing Declarations [DEFINITIVE & COMPLETE] ---
 (function() {
+  const { TOKEN, PRECEDENCE, PRECEDENCES } = window.MerkavahConstants;
     const proto = MerkavahParser.prototype;
 (function(proto) {
 var times=0

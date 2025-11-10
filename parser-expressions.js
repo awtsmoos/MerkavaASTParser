@@ -1,8 +1,9 @@
 // In parser-expressions.js
 // B"H --- Parsing Expressions [DEFINITIVE, UNIVERSAL & COMPLETE] ---
 (function() {
-    const proto = MerkavahParser.prototype;
 
+const { TOKEN, PRECEDENCE, PRECEDENCES } = window.MerkavahConstants;
+    const proto = MerkavahParser.prototype;
 (function(proto) {
 	// B"H
 // --- Start of Replacement for registerExpressionParsers in parser-expressions.js ---
