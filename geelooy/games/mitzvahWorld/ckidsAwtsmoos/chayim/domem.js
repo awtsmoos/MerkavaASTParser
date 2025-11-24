@@ -1,0 +1,1172 @@
+/**
+ * B"H
+ * @file domem.js
+ * @class Domem
+ * @requires nivra.js
+ */
+import Nivra from "./nivra.js";
+import {Kav} from "./roochney.js";
+import * as THREE from '/games/scripts/build/three.module.js';
+import Utils from '../utils.js'
+/**
+ * Domem is a subclass of Nivra representing inanimate matter.
+ * 
+ * @class
+ * @extends Nivra
+ */
+export default class Domem extends Nivra {
+    /**
+     * varructs a new Domem.
+     * 
+     * @param {Object} options The options for this Domem.
+     * @param {string} options.name The name of this Domem.
+     * @param {string} options.path The path to the glTF model for this Domem.
+     * @param {Object} options.position The initial position of this Domem.
+     * @param {Boolean} options.isSolid If an object can be collided with
+     * @property {Olam} olam The "world" object to interact with
+     * @property {Array} animations the animations loaded from the 3D model, if any
+     * @property {Boolean} heeshawveh / recreate, boolean to varantly update 
+     *  it every frame or leave it.
+     */
+    type = "domem";
+    animations = [];
+    path = "";
+    position = new Kav();
+    rotation = new Kav();
+    scale = new Kav();
+    static = true;
+    olam = null;
+    heesHawveh = false;
+    animationMixer;
+    currentAnimationPlaying = null;
+    golem = null;
+    playAll = false;
+	shaym = "BH_" + Math.floor(Math.random() * 827231) + 12312 + 
+		"_"+Date.now();
+	removed = false;
+    entityData = {};
+
+    _animationSpeedScale = 1.4;
+
+    get animationSpeedScale() {
+        return this._animationSpeedScale;
+    }
+
+    set animationSpeedScale(v) {
+
+        if(this.animationMixer) {
+            this.animationMixer.timeScale = v
+        }
+  
+        this._animationSpeedScale = v;
+    }
+
+    constructor(options, olam) {
+        super(options);
+        this.olam = olam;
+        this.originalOptions = options;
+        this.path = options.path;
+        this.golem = options.golem;
+        this.position.set(options?.position);
+      //  console.log("Set position", options, this.position,this)
+        var rot = options?.rotation;
+        var rotX = {}
+        rotX.x = rot?.x;
+        rotX.y = rot?.y;
+        rotX.z = rot?.z;
+        this.rotation.set(rotX);
+        this.methodsToCall = options?.methods || options?.methodsToCall;
+        console.log(rotX,options,this,this.rotation,options.rotation)
+        var scale = options.scale;
+        if(!scale) scale = {x:1,y:1,z:1};
+        this.scale.set(scale)
+        this.isSolid = !!options.isSolid;
+        this.interactable = options.interactable;
+        if(this.interactable) {
+            this.isInteractive = true;
+        }
+        this.proximity = options.proximity;
+		this.heesHawveh = options.heesHawveh;
+        this.height = options.height;
+        this.instanced = options.instanced;
+        this.entityName = options.entityName;
+        this.playAll = !!options.playAll;
+        this.environment = options.environment
+        if(typeof(this.entityName) == "string") {
+            this.isTemplate = true;
+        }
+	this.itemData = options.itemData; 
+        
+        this.isTemplate = options.isTemplate;
+
+
+        if(options.entities) {
+            this.entityData = options.entities;
+        }
+        if(typeof(this.instanced) != "number" || !this.instanced) {
+            this.instanced = false;
+        }
+        this.on("hi", () => {
+            console.log("wow")
+        });
+
+        this.on("madeAll", async (olam) => {
+          //  console.log("hi")
+            //this.mesh.rotation.copy(this.rotation.vector3());
+            
+        });
+
+        this.on("opacity", amount => {
+            var m = Array.isArray(this.materials);
+            //console.log("doing",this,amount)
+            if(!m) return
+            this.materials.forEach(q => {
+                if(!q.transparent) {
+                    q.transparent = true;
+                }
+                q.opacity = amount;
+                
+            })
+        });
+
+        this.locationsChanged = [];
+		
+        this.on("reset position", () => {
+            var mostRecent = this.locationsChanged[
+                0
+            ];
+            if(!mostRecent) return;
+            this.ayshPeula("change transformation", mostRecent)
+        })
+		this.on("change transformation", /**
+			object with position and rotation
+		**/({
+            position,
+            rotation,
+            scale
+        }) => {
+        //    console.log("Changing",this)
+            if(this.mesh) {
+                if(position)
+                    this.mesh.position.copy(position);
+                if(this.setPosition) {
+                    this.setPosition(position)
+                }
+                if(rotation) {
+                    this.mesh.rotation.copy(rotation)
+                }
+                if(scale) {
+                    this.mesh.scale.copy(scale)
+                }
+            }
+			
+			this.ayshPeula("collider transform update", {
+                position, rotation, scale
+            });
+
+            this.locationsChanged.push({
+                position,
+                rotation,
+                scale
+            })
+		});
+
+        this.on("sealayk", () => {
+            if(this.olam) {
+                this.olam?.sealayk(this)
+            }
+        });
+
+        /**
+         * B"H
+         * Allows one to set events when making
+         * new object.
+         * 
+         * For @example
+         * 
+         * var d = new AWTSMOOS.Domem({
+         *      on: {
+         *          heesHawvoos(me) {
+         *              //do something on update
+         *          }
+         *      }
+         * })
+         */
+
+        
+        
+
+        this.ayshPeula("varructed", this);
+
+        // Additional properties can be set here
+    }
+
+    getPath() {
+        if(
+            this.path &&
+            typeof(this.path) == "string"
+        ) {
+            var derech = this.path;
+            
+            // Check if the path starts with "awtsmoos://"
+            if (this.path.startsWith('awtsmoos://')) {
+                // Extract the component name from the path
+               // var componentName = nivra.path.slice(11);
+
+                
+                // Get the component from the Olam
+                var component = this.olam.getComponent(this.path);
+                
+                // If the component doesn't exist, throw an error
+                if (!component) {
+                    console.log(`Component "${component}" not found, ${this.path}`);
+                    return "";
+                }
+
+                // Use the component's data URL as the path
+                derech = component;
+                this.loadedPath = derech;
+            }
+            return derech;
+
+        }
+        return null;
+    }
+
+    async getSize() {
+        var path = this.getPath();
+        if(!path) return 0;
+        try {
+            var r = await fetch(path);
+            var lng = r.headers.get("Content-Length")
+            return parseInt(lng);
+        } catch(e){
+            console.log(e)
+        }
+        return 0;
+    }
+
+    sealayk() {
+        this.ayshPeula("sealayk")
+    }
+    serialize() {
+        super.serialize();
+        
+        this.serialized = {
+            ...this.serialized,
+        };
+        
+        // Define keys that should be handled specially or copied
+        var optionKeys = Object.keys(this?.originalOptions || {});
+        var original = ["on", "itemData", "dimensions"]; // Add itemData/dimensions to preservation list
+
+        // If we have itemData, we want to SAVE that, but we explicitly want to
+        // EXCLUDE the verbose 'golem' definition, because the Class (e.g., Brick)
+        // will regenerate the golem from the itemData/dimensions upon loading.
+        const hasSmartMetadata = this.itemData || (this.originalOptions && this.originalOptions.itemData);
+
+        for(var key of optionKeys) {
+            // Skip 'golem' if we have smart metadata to save space
+            if (key === "golem" && hasSmartMetadata) {
+                continue; 
+            }
+
+            var tried = this[key] || this.originalOptions[key];
+            
+            if(original.includes(key)) {
+                this.serialized[key] = this.originalOptions[key] || this[key];
+                
+                if(key == "on") {
+                    tried = Utils.stringifyFunctions(this.serialized[key]);
+                    this.serialized[key] = tried;
+                }
+                continue;
+            }
+            
+            if(typeof(tried?.serialize) == "function") {
+                tried = tried?.serialize?.();
+            }
+            
+            this.serialized[key] = tried;
+        }
+
+        // Explicitly ensure itemData is saved if it exists on the instance
+        if (this.itemData) {
+            this.serialized.itemData = this.itemData;
+        }
+
+        return this.serialized;
+    }
+
+    _visible = true;
+    /**
+     * @property visible
+     * @argument {Boolean} v
+     */
+    set visible(v) {
+        
+        this._visible = v;
+        if(!this.mesh) return;
+        this.mesh.visible = v;
+    }
+
+    get visible() {
+        return this._visible;
+    }
+
+    async getIcon() {
+        if(this.iconItem) {
+            var iconData = await this.olam.getIconFromType(this.constructor.name)
+            return iconData;
+        } else if(this.iconPath) {
+            var img = "../../icons/"+this.iconPath;
+            var f = await fetch(img);
+            var t = await f.text()//svg images
+            return t;
+        }
+    }
+
+    /**
+     * Starts the Domem. This function can be overridden by subclasses to provide
+     * Domem-specific behavior.
+     * 
+     * @param {Olam} olam The world in which this Domem is being started.
+     */
+    async heescheel(olam, info) {
+        this.olam = olam;
+        
+        await super.heescheel(olam);
+        /**
+         * either its a new nivra
+         * in which case we need
+         * a new mesh or load one
+         * 
+         * or its an "entity" or "template" which
+         * means it will take the place
+         * of an existing child that we can set
+         * later.
+         * 
+         */
+
+        if(this.isTemplate) {
+            /**
+             * do noting now
+             * but can set the mesh later
+             */
+            return true;
+        } else {
+            try {
+                var threeObj; 
+            
+                var res;
+                try {
+                    res = await olam.boyrayNivra(this, info);
+                } catch(e) {
+                    throw e
+                }
+
+
+                if(res) {
+                    threeObj = res;
+                } else {
+                    
+                    throw "issue"
+                }
+                
+                
+                
+                if(threeObj) {
+                    
+                    if(threeObj.scene) {
+                        
+                        this.mesh = threeObj.scene;
+                        
+
+                    } else if(threeObj) {
+                        this.mesh = threeObj;
+                    }
+
+                    if(threeObj.animations) {
+                        this.animations = threeObj.animations;
+                    }
+
+                    if(this.mesh) {
+                        this.mesh.nivraAwtsmoos = this;
+                        this.animationMixer = 
+                        new THREE.AnimationMixer(
+                            this.mesh
+                        );
+                        this.getChaweeyoos();
+
+                        if(this.instanced) {
+                            var geo = this.mesh.geometry || 
+                            this.mesh.children[0].geometry;
+
+                            if(geo && geo.isBufferGeometry) {
+                                var mat = this.mesh.material ||
+                                    this.mesh.children[0].material;
+                        
+                                if(mat) {
+                                    var instancedMesh = new THREE.InstancedMesh(
+                                        geo, mat,
+                                        this.instanced
+                                    );
+                                    this.mesh = instancedMesh;
+                                } else {
+                                    this.instanced = false;
+                                }
+                                
+                            } else {
+                                this.instanced = false;
+                            }
+                            
+                        }
+                    }
+
+
+                    this.mesh.position.copy(
+                        this.position.vector3()
+                    );
+                    if(this.rotation) {
+                        this.mesh.rotation.x = 
+                        this.rotation.x;
+                        this.mesh.rotation.y = 
+                        this.rotation.y;
+                        
+                        this.mesh.rotation.z = 
+                        this.rotation.z;
+                        
+                       
+                    }
+                    if(this.scale) {
+                        this.mesh.scale.copy(
+                            this.scale
+                        );
+                    }
+                    
+                  //  this.mesh.layers.disableAll();
+                    
+                    await olam.hoyseef(this);
+                    this.mesh.visible = this.visible;
+                    
+                    if (this.needsOctreeChange) {
+			    this.ayshPeula(
+			        "increase loading percentage",
+			        {
+			            amount: 0,
+			            nivra: this,
+			            action: "Getting ready to add nivra " + this.name + " to Octree"
+			        }
+			    );
+			
+			    // CRITICAL FIX: Only call changeOctreePosition for complex models (with a path),
+			    // NOT for dynamically created primitives (golem).
+			    // The primitive's physics are already handled synchronously in boyrayNivra.
+			    if (this.path) {
+			        this.ayshPeula("changeOctreePosition", this.position);
+			    }
+			}
+                   /* if(this.isSolid) {
+                        this.mesh.layers.set(2)
+                    } else {
+                        this.mesh.layers.set(3)
+                    }*/
+                    
+                    return true;
+                }
+
+                return false;
+            } catch(e) {
+                throw e;
+            }
+        }
+        // Implement Domem-specific behavior here
+    }
+
+    /**
+     * @method moveMeshToSceneRetainPosition
+     * Moves a mesh to the scene, retaining its world position, rotation, and scale.
+     * Removes the mesh from all of its parents except the main scene.
+     */
+    moveMeshToSceneRetainPosition(mesh = null) {
+        var mesh = mesh || this.mesh;
+        var scene = this.olam?this.olam.scene:null;
+        if(!scene || !mesh) return
+        // Ensure the mesh's matrixWorld is updated
+        mesh.updateMatrixWorld(true);
+    
+        // Store the current world position, rotation, and scale
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        mesh.matrixWorld.decompose(position, quaternion, scale);
+    
+        // Remove the mesh from its parent
+        if (mesh.parent) {
+        mesh.parent.remove(mesh);
+        }
+    
+        // Add the mesh directly to the scene
+        scene.add(mesh);
+    
+        // Apply the stored world position, rotation, and scale to the mesh
+        mesh.position.copy(position);
+        mesh.quaternion.copy(quaternion);
+        mesh.scale.copy(scale);
+    
+        // Reset the mesh's matrix so that its position, rotation, and scale are applied relative to the scene
+        mesh.updateMatrix();
+    }
+    setMesh(mesh/*THREEjs object*/) {
+        this.mesh = mesh;
+        this.mesh.nivraAwtsmoos = this;
+        this.proximityCollider = null;
+    }
+    disperseInstance(w, h) {
+        if(this.instanced) {
+            // Set position, rotation, and scale for each instance
+            for (let i = 0; i < this.instanced; i++) {
+                var position = new THREE.Vector3(
+                    Math.random() * w, 0, Math.random() * h
+                );
+                var rotation = new THREE.Euler(0, Math.random() * Math.PI * 2, 0);
+                var quaternion = new THREE.Quaternion().setFromEuler(rotation);
+                var scale = new THREE.Vector3(1, Math.random() + 0.5, 1);
+                var matrix = new THREE.Matrix4().compose(position, quaternion, scale);
+                
+                this.mesh.setMatrixAt(i, matrix);
+            }
+        }
+    }
+
+    
+    async dynamicGrass({
+        assetURL="awtsmoos://grassModel",
+        GRASS_COUNT = 101801,
+    
+    }) {
+        if(this.olam.isGPU()) {
+            return console.log("No grass, GPU!")
+        }
+	return console.log("Grass in development")
+        var gltf = null;
+        var comp = null;
+        var grassStuff = null;
+
+        // Initialize raycaster
+        const raycaster = new THREE.Raycaster();
+        const rayDirection = new THREE.Vector3(0, -1, 0); // Downward direction
+        const rayOrigin = new THREE.Vector3();
+        var grassPatch = async (
+            position,
+            rotation,
+            scale
+        ) => {
+            if(!comp)
+                comp = this.olam.getComponent(
+                    assetURL
+                );
+            
+            if(!comp) return null;
+            if(!gltf) {
+                gltf = await this.olam.loadGLTF(comp)
+            }
+            if(!grassStuff) {
+                var setPositions = 0
+                grassStuff = {
+                    clock: new THREE.Clock(),
+                    mesh: new THREE.InstancedMesh(
+                        gltf.scene.children[0].geometry.clone(),
+                        new this.olam.GrassMaterial({
+                            side: THREE.DoubleSide
+                        }),
+                        GRASS_COUNT
+                    ),
+                    instances: [],
+                    update: () => {
+                        if(setPositions++ < 5) {
+                            grassStuff.instances.forEach((grass, index) => {
+                                grass.updateMatrix();
+                                
+                                grassStuff.mesh.setMatrixAt(index, grass.matrix);
+                            });
+                    
+                            grassStuff.mesh.instanceMatrix.needsUpdate = true;
+                            grassStuff.mesh.computeBoundingSphere();
+                       
+                        }
+                        
+                        grassStuff.mesh.material.uniforms.fTime.value = 
+                        grassStuff.clock.getElapsedTime();
+
+                        
+                        
+                
+
+                        if(this.olam.chossid) {
+                            grassStuff
+                            .mesh
+                            .material
+                            .uniforms
+                            .vPlayerPosition.value.copy(
+                                this.olam.chossid.mesh.position
+                            );
+                        }
+                        requestAnimationFrame(grassStuff.update);
+                    }
+                };
+
+                if(this.olam.chossid) {
+                    var caps = this.olam.chossid.getCapsule();
+
+                    grassStuff
+                    .mesh
+                    .material
+                    .uniforms
+                    .fPlayerColliderRadius.value = caps.radius/2;
+
+                    grassStuff
+                    .mesh
+                    .material
+                    .uniforms
+                    .fPlayerColliderHeight.value = caps.height;
+
+                }
+                if(!this.olam.grasses) {
+                    this.olam.grasses = []
+                }
+                this.olam.grasses.push(grassStuff)
+                this.olam.scene.add(grassStuff.mesh);
+              //  grassStuff.mesh.position.y = this.mesh.position.y -6
+                grassStuff.mesh.layers.enable(2)
+                grassStuff.update();
+                
+                const empty = new THREE.Object3D();
+                empty.scale.setScalar(0.0);
+                empty.updateMatrix();
+            
+                for (let i = 0; i < grassStuff.mesh.count; i++) {
+                    grassStuff.mesh.setMatrixAt(i, empty.matrix);
+                    grassStuff.mesh.setColorAt(i, new THREE.Color(Math.random() * 0xffffff));
+                }
+                
+                grassStuff.mesh.instanceColor.needsUpdate = true;
+                grassStuff.mesh.instanceMatrix.needsUpdate = true; 
+                grassStuff.mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+
+            }
+
+
+            // Position grass with octree ray intersection
+            rayOrigin.copy(position).setY(1000); // Start the ray above the terrain
+            raycaster.set(rayOrigin, rayDirection);
+ 
+
+            if(this.landOctree) {
+                const oct = this.landOctree.rayIntersect(raycaster.ray);
+                if (oct) {
+                    position.y = oct.position.y;
+                }
+            }
+            const grass = new THREE.Object3D();
+            grass.position.copy(position);
+            
+            grass.rotation.copy(rotation);
+            grass.scale.copy(scale);
+            grass.visible = false;
+            
+            grassStuff.instances.push(grass);
+            return grassStuff;
+        }
+
+        for (let i = 0; i < GRASS_COUNT; i++) {
+            await grassPatch(
+              new THREE.Vector3().randomDirection()
+                .multiply(new THREE.Vector3(
+                  1.0,
+                  0.0,
+                  1.0
+                ))
+                .multiplyScalar(100.0),
+              new THREE.Euler(
+                0.0,
+                Math.random() * Math.PI * 2.0,
+                0.0,
+              ),
+              new THREE.Vector3().setScalar(0.14 + Math.random() * 0.102),
+            );
+          }
+    }
+
+    /**
+     * @method mixTextures
+     * Useful for something like a terrain
+     * where in blender u have
+     * a mix shader 
+     * with the factor
+     * being another texture with
+     * white as one 
+     * and black as the other.
+     * 
+     * arguments are all
+     * just a PATH or URL
+     * to texture, needs
+     * to be processed by THREE.js
+     * 
+     * @returns a new texture
+     * custom made
+     * with a custom shader
+     * that mixes the two
+     * and that can be 
+     * plugged in somewhere
+     * else as threeMesh.material.map=returnValue
+     */
+   
+	async mixTextures({
+       
+        baseTexture,      // Dirt
+        overlayTexture,   // Grass
+        repeatX = 1,
+        repeatY = 1,
+        childNameToSetItTo = null,
+        textureScale = 0.05,
+        pathChildName = null, 
+        feather = 5.0,
+        intensity = 1.0,      
+        lowHeight = 0.0,      
+        highHeight = 10.0     
+    } = {}) {
+        var self = this;
+        try {
+            baseTexture = self.olam.$gc(baseTexture);
+            overlayTexture = self.olam.$gc(overlayTexture);
+        } catch(e){ console.log("Couldnt get it",e); }
+       
+        var base, overlay;
+        try {
+            base = await self.olam.loadTexture({ url: baseTexture, shouldRepeat: true, repeatX, repeatY, nivra: self });
+            overlay =  await self.olam.loadTexture({ url: overlayTexture, shouldRepeat: true, repeatX, repeatY, nivra: self });
+            base.wrapS = base.wrapT = THREE.RepeatWrapping;
+            overlay.wrapS = overlay.wrapT = THREE.RepeatWrapping;
+        } catch(e) { console.log("Issue loading!",e); return; }
+       
+	    var targetChild = null;
+	    if (childNameToSetItTo && this.mesh) {
+	        this.mesh.traverse((child) => {
+	            if (!targetChild && child.isMesh && child.name.includes(childNameToSetItTo)) {
+	                targetChild = child;
+	            }
+	        });
+	    }
+	    if (!targetChild) { console.error("Could not find the child mesh:", childNameToSetItTo); return; }
+
+        // --- B"H JAVASCRIPT LOGIC with PATH SIMPLIFICATION & PADDING ---
+        const MAX_SEGMENTS_FOR_SHADER = 200; // Define this once, use it for JS and GLSL
+        let pathObject = null;
+        if (pathChildName) {
+            this.mesh.traverse(child => {
+                if (child.name === pathChildName && child.geometry) {
+                    pathObject = child;
+                }
+            });
+        }
+
+        const pathSegments = [];
+        let usePathMixing = false;
+        let numActualSegments = 0;
+
+        if (pathObject) {
+            console.log("Found path object:", pathObject);
+            pathObject.visible = false
+            usePathMixing = true;
+            pathObject.updateMatrixWorld(true); 
+             
+            const positions = pathObject.geometry.attributes.position;
+            const worldVertices = [];
+            for (let i = 0; i < positions.count; i++) {
+                const localPoint = new THREE.Vector3().fromBufferAttribute(positions, i);
+                const worldPoint = localPoint.applyMatrix4(pathObject.matrixWorld);
+                worldVertices.push(worldPoint);
+            }
+
+            // 1. Simplify path to not exceed our shader's max limit
+            const step = Math.max(1, Math.ceil(worldVertices.length / MAX_SEGMENTS_FOR_SHADER));
+            for (let i = 0; i < worldVertices.length - 1; i += step) {
+                if(pathSegments.length >= MAX_SEGMENTS_FOR_SHADER * 2) break; // Safety break
+                pathSegments.push(worldVertices[i], worldVertices[i+1]);
+            }
+            numActualSegments = pathSegments.length / 2;
+            console.log(`Simplified path to ${numActualSegments} segments.`);
+
+        } else {
+            console.log("No path object found. Falling back to height-based mixing.");
+        }
+
+        // 2. THIS IS THE FIX: Pad the array to match the shader's fixed size
+        while (pathSegments.length < MAX_SEGMENTS_FOR_SHADER * 2) {
+            pathSegments.push(new THREE.Vector3()); // Add empty vectors as padding
+        }
+
+        // --- B"H FINAL SHADER LOGIC ---
+        var customLambertMaterial = new THREE.MeshLambertMaterial();
+        customLambertMaterial.onBeforeCompile = function (shader) {
+            shader.uniforms.baseTexture = { value: base };
+            shader.uniforms.overlayTexture = { value: overlay };
+            shader.uniforms.repeatVector = { value: new THREE.Vector2(repeatX, repeatY) };
+			shader.uniforms.textureScale = { value: textureScale };
+            shader.uniforms.usePathMixing = { value: usePathMixing };
+            shader.uniforms.feather = { value: feather };
+            shader.uniforms.intensity = { value: intensity };
+            shader.uniforms.lowHeight = { value: lowHeight };
+            shader.uniforms.highHeight = { value: highHeight };
+            shader.uniforms.pathSegments = { value: pathSegments }; // Pass the padded array
+            shader.uniforms.numPathSegments = { value: numActualSegments }; // Pass the REAL count
+
+            shader.vertexShader = `varying vec3 vWorldPosition;\n` + shader.vertexShader;
+            shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\nvWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;`);
+
+            shader.fragmentShader = `
+                uniform sampler2D baseTexture, overlayTexture; uniform vec2 repeatVector; uniform float textureScale, feather, lowHeight, highHeight;
+                uniform float intensity;
+                uniform bool usePathMixing;
+                uniform vec3 pathSegments[${MAX_SEGMENTS_FOR_SHADER * 2}]; 
+                uniform int numPathSegments; 
+                varying vec3 vWorldPosition;
+                float distanceToLineSegment(vec3 p, vec3 a, vec3 b) {
+		    vec2 p2 = p.xz;
+		    vec2 a2 = a.xz;
+		    vec2 b2 = b.xz;
+		    vec2 pa = p2 - a2, ba = b2 - a2;
+		    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+		    return length(pa - ba * h);
+		}
+            ` + shader.fragmentShader;
+            
+            // This is the final, working logic.
+            var fragmentLogic = `
+                vec4 dirtColor = texture2D(baseTexture, (vWorldPosition.xz * textureScale) * repeatVector);
+                vec4 grassColor = texture2D(overlayTexture, (vWorldPosition.xz * textureScale) * repeatVector);
+                float mixFactor = 0.0;
+                if (usePathMixing && numPathSegments > 0) {
+                    float minDistance = 1e38;
+                    for (int i = 0; i < numPathSegments; ++i) {
+                        minDistance = min(minDistance, distanceToLineSegment(vWorldPosition, pathSegments[i * 2], pathSegments[i * 2 + 1]));
+                    }
+                    // First, calculate the smooth blend factor as before
+                    float smoothFactor = 1.0 - smoothstep(0.0, feather, minDistance);
+                    // Then, apply the power function to control the curve.
+                    // We use 1.0 / intensity to make the control intuitive (higher intensity = stronger effect).
+                    mixFactor = pow(smoothFactor, 1.0 / intensity);
+                } else {
+                    mixFactor = smoothstep(lowHeight, highHeight, vWorldPosition.y);
+                }
+                vec4 mixedColor = mix(dirtColor, grassColor, mixFactor);
+                diffuseColor *= mixedColor;
+            `;
+
+            shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' + fragmentLogic);
+        };
+
+		targetChild.material = customLambertMaterial;
+	    targetChild.material.needsUpdate = true;
+    }
+    
+    async madeAll(olam) {
+        
+
+		
+    }
+
+    async ready() {
+        await super.ready();
+        
+       // console.log("Hi", this, this.mesh, this.name)
+    }
+	
+	async afterBriyah() {
+		super.afterBriyah();
+        if(this.playAll) {
+            this.heesHawveh = true;
+            if(this.chaweeyoos)
+                this.chaweeyoos.forEach(c => {
+                    this.playChaweeyoos(c)
+                })
+        }
+        if(this.methodsToCall) {
+            this.olam.callMethods(
+                this,
+                this.methodsToCall
+            )
+        }
+
+	}
+
+    heesHawvoos(deltaTime) {
+		if(this.removed) return;
+        super.heesHawvoos(deltaTime);
+        this.ayshPeula("heesHawvoos", this);
+       // console.log(44,this.name)
+        if(this.currentAnimationPlaying != null) {
+            if(this.animationMixer) {
+                this.animationMixer.update(
+                    deltaTime
+                );
+            }
+        }
+    }
+    clipActions = {};
+
+    resetChaweeyoos(shaym) {
+        var clip = THREE.AnimationClip
+            .findByName(
+                this.animations,
+                shaym
+            );
+        if(clip) {
+            var action = 
+                this.animationMixer
+                .clipAction(clip);
+                if(!this.clipActions[shaym]) {
+                    this.clipActions[shaym] = action;
+                }
+            if(action)
+                action.reset();
+        }
+            
+    }
+
+
+    /**
+     * 
+     * @param {string} path 
+     * the link to the awtsmoos
+     * component of the audio 
+     * loaded at first,
+     * namely awtsmoos://audioName
+     * (if loaded in "components" of olam)
+     * 
+     * @requires HTML element generated
+     * by the dynamic ui with "shaym" of
+     * "music player" like
+     * 
+     * shaym: "music player",
+        children: [
+            {
+                shaym: "audio base layer"
+            },
+            {
+                shaym: "audio effects layer 1"
+            }
+        ]
+     */
+    playSound(path, {
+        layerName = "audio base layer",
+        loop = false,
+        volume = 1,
+		onended=()=>{}
+    } = {}) {
+        
+        var music = this.olam.getComponent(path);
+        
+       // console.log("Hi!",music,path)
+        if(!music) return false;
+        this.olam.ayshPeula("setHtml",({
+            shaym: layerName,
+			info: {
+				options: {
+					loop, 
+					music,
+                    volume,
+					shaym:this.shaym/*domem UID*/,
+                    layerName
+				},
+				ready: function(me, $f, ui) {
+					
+                    var newShaym = me.options.shaym + " "
+                        + me.options.layerName;
+                    var nv = $f(newShaym);
+                    
+                  /*  console.log(
+                        "A",
+                        nv, 
+                        me.options, 
+                        newShaym,
+                        "Making! maybe?!",
+                        nv
+                    )*/
+					if(!nv) {
+						var h = ui.html({
+							shaym: newShaym,
+							parent: me,
+							tag: "audio",
+							src: me.options.music,
+                            volume:me.options.volume,
+							autoplay: true,
+							loop:me.options.loop
+						});
+                    //    console.log("Made!",h,nv,"HI aain")
+					} else {
+                        ui.setHtml(nv, {
+                            tag: "audio",
+							src: me.options.music,
+                            volume:me.options.volume,
+							autoplay: true,
+							loop:me.options.loop
+                        })
+                   //     console.log("SET",nv)
+                    }
+				}
+			}
+        }));
+		
+		return {
+			layerName,
+			nivra:this
+		}
+        
+    }
+	
+	/*
+		each nivra only has
+		one sound playing
+		at a time per layer so 
+		stopping sound will just 
+		stop all sounds that that nivra is
+		playing if any (on that layer)
+	*/
+	
+	stopSound(
+        layerName = "audio base layer",
+	) {
+        var newShaym = this.shaym + " "
+        + layerName;
+       // console.log("Trying it",newShaym)
+        this.olam.ayshPeula("htmlAction", {
+            shaym: newShaym,
+            methods: {
+                pause: true
+            },
+            properties: {
+                currentTime: 0
+            }
+        })
+        
+	}
+	
+	stopCutscene() {
+		this.stopSound();
+		this.olam.activeCamera = null;
+	}
+	
+	
+	
+	playCutscene({
+		audioName, 
+		animationName,
+		cameraName = "Camera",
+	} = {}) {
+		
+		this.playSound(audioName,{
+			loop:false
+			
+			
+		});
+		
+		this.playChaweeyoos(animationName, {
+			loop:false,
+			done() {
+                try {
+				    this.olam.activeCamera=null;
+                } catch(e) {
+                    
+                }
+			}
+		});
+		var cam = this.mesh.children.find(q=>q.name==cameraName);
+		if(cam) {
+			cam = cam.children[0];
+			this.olam.activeCamera=cam;
+			
+		}
+	}
+
+    playChayoos(shaym, op) {
+        this.playChaweeyoos(shaym, op);
+    }
+
+    nextAction = null;
+    /**
+     * @function playChaweeyoos
+     * Plays an animation for the model, ensuring smooth transitions from any previous animation.
+     * @param {String} shaym - The name of the animation clip to play.
+     * @param {Object} [options] - Optional settings.
+     * @param {number} [options.duration=0.36] - The fade duration for transitions.
+     * @param {boolean} [options.loop=true] - Whether the animation should loop.
+     * @param {function} [options.done] - A callback for when a non-looping animation finishes.
+     */
+    playChaweeyoos(shaym, options = {}) {
+        if (!this.animationMixer || !this.animations || this.animations.length === 0) return;
+
+        const {
+            duration = 0.36,
+            loop = true,
+            done
+        } = options;
+
+        const clip = this.animations.find(anim => anim.name.includes(shaym));
+        if (!clip) return;
+
+        const newAction = this.animationMixer.clipAction(clip);
+
+        if (this.currentAction === newAction) {
+            return; // Don't interrupt the same animation
+        }
+
+        const oldAction = this.currentAction;
+        this.currentAction = newAction;
+
+        // Prepare the new action before transitioning
+        newAction.reset();
+        newAction.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce);
+        newAction.clampWhenFinished = !loop;
+        newAction.enabled = true;
+        newAction.setEffectiveWeight(1);
+
+        // If a previous action was playing, fade from it to the new one
+        if (oldAction) {
+            oldAction.crossFadeTo(newAction, duration, true);
+        } else {
+            newAction.fadeIn(duration); // Otherwise, just fade in the new one
+        }
+
+        newAction.play();
+        this.currentAnimationPlaying = true;
+
+        // Set up a listener for when a non-looping animation finishes
+        if (!loop) {
+            const onFinished = (e) => {
+                if (e.action === newAction) {
+                    this.animationMixer.removeEventListener('finished', onFinished);
+                    if (typeof done === 'function') {
+                        done();
+                    }
+                }
+            };
+            this.animationMixer.addEventListener('finished', onFinished);
+        }
+    }
+	simplePlayOnceAnimation(shaym) {
+		
+	}
+
+    getChaweeyoos() {
+        if(this.animations) {
+            this.chaweeyoos = this.animations.map(q=>q.name);
+            return this.chaweeyoos;
+        }
+    }
+}
+
+                
+
+            

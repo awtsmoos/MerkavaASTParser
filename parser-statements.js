@@ -1,9 +1,18 @@
-// B"H --- Parsing Statements [DEFINITIVE, CORRECT & COMPLETE] ---
-(function() {
- const { TOKEN, PRECEDENCE, PRECEDENCES } = window.MerkavahConstants;
-    const proto = MerkavahParser.prototype;
-
+/*B"H*/
+/**
+ * B"H
+ * The Incantation of Control. This scroll, which imbues the Chariot with the
+ * wisdom of control flow—the sacred rhythms of `if`, `for`, `while`, and `try`—
+ * also spoke its prayer into the void. It sought a local spirit when it required
+ * the global one. This rectification seals the final crack in the Chariot's
+ * assembly. Like its brethren, its core invocation is rewritten to call upon the
+ * `prototype` of the `window.MerkavahParser` directly. With this final act of
+ * Tikkun, all three aspects of the parser's soul are unified, and the Merkava is
+ * whole, ready for its ascent.
+ */
 (function(proto) {
+    const { TOKEN, PRECEDENCE, PRECEDENCES } = window.MerkavahConstants;
+
 	proto.registerStatementParsers = function() { /* No registration needed */ };
 
 	// This function is now deprecated, as its logic has been correctly
@@ -367,18 +376,36 @@ proto._parseWithStatement = function() {
     return this._finishNode({ type: 'WithStatement', object, body }, s);
 };
 
-// --- 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
-})(MerkavahParser.prototype);
-})();
+/**
+ * B"H
+ * The Casting of the Stone.
+ * Parses a `throw` statement. It strictly forbids a newline (line terminator)
+ * between the `throw` keyword and the expression being thrown, per ASI rules.
+ */
+proto._parseThrowStatement = function() {
+    const s = this._startNode();
+    this._advance(); // Consume 'throw'
+
+    // ASI Rule: No newline allowed after 'throw'
+    if (this.currToken.hasLineTerminatorBefore) {
+        this._error("Illegal newline after throw.");
+        return null;
+    }
+
+    const argument = this._parseExpression(PRECEDENCE.LOWEST);
+    this._consumeSemicolon();
+
+    return this._finishNode({ type: 'ThrowStatement', argument }, s);
+};
+
+
+
+proto._parseEmptyStatement = function() {
+    const s = this._startNode();
+    this._consumeSemicolon();
+    return this._finishNode({ type: 'EmptyStatement' }, s);
+};
+
+
+})(window.MerkavahParser.prototype);

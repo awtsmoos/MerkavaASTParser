@@ -50,12 +50,22 @@
         </div>
         
         <select id="script-selector" title="Choose a test script">
+        <option value="makor0" selected>Infinity+1</option>
+        
         <option value="makor">The Ratzon Hamuchlat Test</option>
         <option value="makor2">The Keter Test</option>
-        <option value="makor4">The Azilut Test</option>
+        <option value="makor4">The Atzilus Test</option>
         <option value="makor5">The Tzimtzum Test</option>
         <option value="makor6">The Tiferet Test</option>
-        <option value="makor7" selected>The Ein Sof Test</option>
+        <option value="makor7">The Ein Sof Test</option>
+        <option value="makor_atik">The Atik Test (Ancient)</option>
+        <option value="makor_adam">The Adam Kadmon Test (Primordial)</option>
+        
+        <option value="makor_yecholes">THE YECHOLES TEST: The Infinite Capacity</option>
+	    <option value="makor_awtsmoos">The Awtsmoos Test</option>
+    
+    
+    
     </select>
         
         <div class="controls">
@@ -70,6 +80,13 @@
             <pre id="ast-output"></pre>
         </div>
     </div>
+    
+    <script type="awtsmoos" id="makor0">
+    //B"H
+    var infinite= Infinity; 
+    var plus= infinity+1;
+    
+    </script>
     
     <script type="awtsmoos" id="makor">
     
@@ -249,6 +266,14 @@ export default (class EinSof_Construct {
         console.error("The simulation of Ein Sof has collapsed:", e);
     }
 })();
+
+
+
+
+
+
+
+
     
     </script>
     
@@ -352,7 +377,7 @@ export default class TranscendentalReducer extends (class ChaosMatrix extends Ar
     
     <script type="Awtsmoos" id="makor4">
     // B"H 
-    //--- The Azilut Test: The World of Emanation ---
+    //--- The Atzilus Test: The World of Emanation ---
 // A script that abuses deprecated, obscure, and lexically treacherous syntax.
 // WARNING: This is not a demonstration of good practice. It is a rite of passage for a parser.
 
@@ -719,10 +744,402 @@ export default (class EinSof_Construct {
         console.error("The simulation of Ein Sof has collapsed:", e);
     }
 })();
+
+
+
+</script>
+<script type="awtsmoos" id="makor_atik">
+// B"H
+// --- THE ATIK TEST: The Ancient of Days (Rectified) ---
+// "And the earth was without form, and void..."
+
+// 1. The Holy Trinity of Imports (Default, Namespace, Side-effect)
+import Void, * as Emanations from 'ein-sof';
+import "silence";
+
+// 2. Class Expression extending a Null-Prototype Anonymous Class
+export default class Atik extends (class extends null { 
+    // 3. Static Block with ASI-sensitive Throw
+    static { 
+        try { 
+            // Valid: Throw must be on the same line
+            throw new Error("Chaos"); 
+        } catch {} 
+    } 
+}) {
+    // 4. Private Field initialized with a Sequence Expression and Sparse Array
+    #primordial = (0, 1, 2, [,,].length);
+
+    // 5. The Constructor of Infinite Complexity
+    constructor(
+        // First Param: Deep Object Destructuring with Default Assignment Expressions
+        {
+            // "origin" aliased to "o", default value is an IIFE
+            origin: o = (() => 0)(),
+            
+            // Computed Property in Pattern with Default value involving a Sequence
+            [Symbol.for('chaos')]: entropy = (1, 2, 3),
+
+            // Nested Array Destructuring with Holes and Trailing Comma
+            matrix: [x, , y = "void",] = []
+        } = {},
+
+        // Second Param: Async Arrow Function as Default Value
+        // This tests the "CoverParenthesizedExpression" -> "ArrowParameter" transmutation logic
+        observer = async (
+            event = (o = 1, o + 1), // Sequence in default
+            ...args                 // Rest element
+        ) => { return args; }
+    ) {
+        // Super call with Spread and Trailing Comma
+        super(...[1, 2,]);
+        this.o = o;
+    }
+
+    // 6. The "Get" Triad (The Parser's Nightmare)
+    
+    // A. Method named "get" (Not a getter)
+    get(target) { return target; }
+    
+    // B. Real Getter
+    get value() { return this.#primordial; }
+    
+    // C. Object Literal with "get" as Property, Method, and Accessor
+    manifest() {
+        return {
+            get: 1,              // Property named "get"
+            get() { return 2; }, // Method named "get"
+            get x() { return 3 } // Getter for "x"
+        };
+    }
+
+    // 7. Computed Async Generator Method with Tagged Template Key
+    async * [ `revelation_${ 1 + 1 }` ](
+        // 8. Parameter with Object Destructuring and Renaming
+        { a: alpha, b: beta } = { a: 1, b: 2 }
+    ) {
+        // 9. Labeled Block with Break
+        Tzimtzum: {
+            // Sequence Expression in If-Condition
+            if ((0, false)) break Tzimtzum;
+
+            // 10. Yield ASI Trap
+            // This is VALID. It yields 'undefined'. 
+            // The string below is a separate expression statement.
+            yield 
+            "light"; 
+
+            // 11. Nested Template with Object Literal inside
+            const s = `Emanation: ${ { toString: () => "Keter" } }`;
+        }
+    }
+}
+
+// 12. Final expression: A Comma Sequence returning a Class
+;(1, 2, class {});
+</script>
+<script type="awtsmoos" id="makor_adam">
+// B"H
+// --- THE ADAM KADMON TEST: The Primordial Blueprint ---
+// "Before the beginning, there was the Plan..."
+
+// 1. Import Meta and Dynamic Imports in Sequence
+const meta = import.meta;
+const module = await (import(meta.url), import(meta.url));
+
+// 2. The Class of Origins
+export default class AdamKadmon extends null {
+    // 3. Private Static Fields & Brand Checks (ES2022)
+    static #light = 10n; // BigInt
+    static #vessel = null;
+
+    static hasLight(instance) {
+        // The 'in' operator checking for a private field
+        return #light in instance; 
+    }
+
+    // 4. Computed Keys with Sequence Expressions
+    // The key is the result of (1, 2, 'sefirah'), which is 'sefirah'
+    [ (1, 2, 'sefirah') ] = 'Keter';
+
+    // 5. The Constructor of Paradoxes
+    constructor() {
+        super();
+        // 6. Logical Assignment Chains
+        // If this.#vessel is falsy, assign {}; then if that exists, assign 'clay' to type.
+        this.#vessel ||= {} &&= { type: 'clay' };
+    }
+
+    // 7. The "Of" Paradox Loop
+    emanate() {
+        const of = [1, 2, 3];
+        // "of" is used as: Variable declaration, Loop Keyword, and Iterable
+        for (const of of of) {
+            console.log(of);
+        }
+        
+        // 8. The Empty Loop
+        for (;;) break;
+    }
+
+    // 9. The Regex vs. Division Gauntlet
+    calc(input) {
+        const a = 10, b = 2, g = 5;
+        
+        // A. Division: a / b / g
+        // Parser must see INFIX SLASH twice.
+        let div = a / b / g; 
+
+        // B. Regex: a + (regex literal).test()
+        // Parser must see INFIX PLUS, then PREFIX SLASH (Regex).
+        // The regex is /=/i (matches an equals sign)
+        let match = a + /=/i.test(input);
+
+        // C. Regex containing escaped slash and brackets
+        // /[\\/]/ matches a backslash or forward slash
+        let complex = /[\\/]/.exec(input);
+
+        return [div, match, complex];
+    }
+
+    // 10. Arrow Functions returning Objects with Computed Keys
+    // and Sequence Default Values
+    transmute = (
+        x = (this.reset(), 10), // Sequence in default
+        { y: z } = { y: 20 }    // Destructuring in default
+    ) => ({
+        // Returning an object requires parens (handled by parser)
+        [x + z]: (a) => a ** 2 // Exponentiation
+    });
+
+    // 11. The Unary Abyss
+    async meditate() {
+        // Stacking unary operators
+        // void (typeof (+ (! (~ (await null)))))
+        const nothing = void typeof +!~ await null;
+        
+        // 12. New Target
+        if (!new.target) return;
+    }
+    
+    // 13. Generator yielding a comma sequence
+    * flow() {
+        // This yields 3. The (1, 2) are evaluated and discarded.
+        yield (1, 2, 3); 
+    }
+}
+
+// 14. The Final Expression: A labeled block with a Function Declaration inside (Block Scope)
+OlamHaTohu: {
+    function restore() {
+        return new AdamKadmon();
+    }
+    restore();
+}
+</script>
+    
+    
+    
+    <script type="awtsmoos" id="makor_yecholes">
+// B"H
+// --- THE YECHOLES TEST: The Infinite Capacity (Rectified) ---
+// "There is no space void of Him..."
+
+// 1. Unicode Identifier Escapes
+// \u0061 is 'a'. Identifiers CAN contain unicode escapes.
+// Note: Keywords (like 'var') CANNOT be escaped (\u0076ar is invalid).
+var \u0061 = "The Aleph"; 
+var ಠ_ಠ = "The Watcher";
+
+// 2. The "Slider" Operator
+// This parses as: while ( (x--) > 0 )
+let x = 10;
+while (x --> 0) {} 
+
+// 3. The Block/Object Illusion
+{
+    // This is a BLOCK, not an object.
+    // 'creation' is a LABEL.
+    // '1' is an ExpressionStatement.
+    creation: 1
+    ;
+}
+
+// 4. The Contextual Keyword Paradox
+// 'async' and 'of' are valid variable names (even in modules).
+function paradox() {
+    let async = [1];
+    // Loop: variable 'of' iterating over 'async'
+    for (let of of async) {
+        // 'await' is reserved in modules, so we use 'wait' as label
+        wait: for (;;) break wait;
+    }
+}
+
+// 5. Function Expression Division
+// Valid because it is an EXPRESSION (RHS of assignment), not a STATEMENT.
+const ratio = function() { return 10 } / 2;
+
+// 6. The Generator ASI Gauntlet
+function *emanator() {
+    // ASI triggers here. Yields 'undefined'.
+    yield
+    // This is a RegExp literal statement, NOT division.
+    /a/g.test("a");
+    
+    // Yield delegation with a template literal
+    yield* `light`;
+}
+
+// 7. Class with "Reserved" Method Names
+// Valid as method names, but reserved as keywords elsewhere.
+class Sefirot {
+    delete() {}
+    void() {}
+    typeof() {}
+    in() {}
+    
+    // Computed static field using a comma sequence
+    static [ (1, 2, "keter") ] = Infinity;
+}
+
+// 8. Deep Arrow Chain
+const chain = a => b => c => (d) => a + b + c + d;
+
+// 9. The Unary Void Abyss
+const emptiness = void void void 0;
+
+// 10. New Target in Arrow
+function construct() {
+    const check = () => new.target;
+}
+
+// 11. The Ultimate Expression
+// Wrapped in parens to force it to be an ExpressionStatement (not a block).
+;({
+    [1 + 1]: 2,
+    \u0061, // Shorthand for 'a' (defined at top)
+    *generator() {}
+});
 </script>
 
 
+
+
+
+<script type="awtsmoos" id="makor_awtsmoos">
+// B"H
+// --- THE AWTSMOOS TEST: The Absolute Essence (Rectified) ---
+// "Ain Od Milvado" - There is nothing but the Code.
+
+// 1. Imports of every flavor
+// Note: \u0061 is 'a'. Identifiers can use escapes. Keywords cannot.
+import Default, { \u0061 as Aleph, b as Bet } from "letters";
+import * as All from "everything";
+import "side-effect";
+
+// 2. Exporting a Class Expression defined via Sequence
+// (0, class...) evaluates to the class. Valid expression export.
+export default (0, class Awtsmoos extends (null, Array) {
     
+    // 3. Private Static Fields with BigInt and Numeric Separators
+    static #count = 1_000_000n;
+    static #essence = "\x41\u0062\u{1D49E}"; // "AbC" using Hex, Unicode, CodePoint escapes
+
+    // 4. Computed Method Key with String Escapes
+    [ "method\n\t\r\v\f\b\0" ]() {
+        return this.#essence;
+    }
+
+    // 5. The Constructor of Infinite State
+    constructor(
+        // A. Object Destructuring with Renaming and Defaults
+        { 
+            // B. Computed Property in Pattern
+            [Symbol.iterator]: iterator = function*() { yield 1; },
+            
+            // C. Nested Array with Holes and Default Assignment
+            config: [ x, , y = "default" ] = []
+        } = {},
+        
+        // D. Async Arrow Function as a Default Value (The Cover Grammar Trap)
+        // Parser must initially see (a=1, b=2) as a parenthesized sequence, 
+        // then transmute it to Arrow Parameters when '=>' appears.
+        callback = async (a = 1, b = 2) => a + b
+    ) {
+        super();
+        this.iterator = iterator;
+    }
+
+    // 6. Async Generator Property (Not a method, a property holding a generator)
+    // This tests the parser's ability to distinguish * as generator vs * as math
+    generatorField = async function* (start) {
+        // 7. Yielding a Sequence Expression
+        // Yields 3. (1+1 is evaluated, 2 is evaluated, 3 is yielded)
+        yield (1 + 1, 2, 3);
+        
+        // 8. Yield Delegate with Template Literal
+        // \u{1F525} is the Fire Emoji
+        yield* `\u{1F525}`; 
+    };
+
+    // 9. The Logic Core
+    process() {
+        let \u0070ower = 10; // Identifier 'power' using unicode escape \u0070
+        
+        // 10. The Loop of Ambiguity
+        // 'async' is a valid var name. 'of' is a valid var name.
+        // 'await' is reserved in modules, so we use 'wait' as label.
+        let async = [1, 2];
+        wait: for (const of of async) {
+            if (of > 5) break wait;
+        }
+
+        // 11. The Regex / Division Singularity
+        // Parser must track context perfectly.
+        const ratio = \u0070ower / 2 / 5; // Division (10 / 2 / 5 = 1)
+        
+        // Regex literal starting with = (slash-assign token split)
+        // plus flags g, i, m
+        const pattern = /=/gim; 
+        
+        // Regex containing escaped slashes and brackets
+        const path = /[/\\]/;
+
+        return [ratio, pattern, path];
+    }
+
+    // 12. Deeply Nested Template Literals
+    render() {
+        return `Level 1: ${ 
+            `Level 2: ${ 
+                `Level 3: ${ 
+                    // Object literal inside template
+                    { toString: () => "Core" } 
+                }` 
+            }` 
+        }`;
+    }
+});
+
+// 13. The Final Statement: Void Operator Sequence
+// void (function call)
+void (function() {
+    // 14. Postfix ASI Trap inside IIFE
+    let i = 0, j = 0;
+    
+    // ASI MUST insert a semicolon after 'i' because of the newline.
+    // Then '++j' is parsed as a Prefix UpdateExpression on the next line.
+    // If parsed as 'i++', it would be Postfix (wrong line) and leave 'j' hanging.
+    // If parsed as 'i ++ j', it's syntax error.
+    // Correct: i; ++j;
+    i
+    ++j; 
+    
+    // Validating the result logic (just for validity check)
+    return [i, j];
+})();
+</script>
     <script src="parser-core.js"></script>
 
     
